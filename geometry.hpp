@@ -28,23 +28,24 @@ struct Camera {
     float focalLength;
 };
 
-struct Light {
-    vec3 position;
-    vec3 intensity;
-};
+//struct Light {
+//    vec3 position;
+//    vec3 intensity;
+//};
 
 class Material {
     vec3 diffuse;
     vec3 specular;
     float phongExp;
     vec3 reflectance;
+    vec3 emissive;
     
 public:
     Material();
     Material(vec3 diff, vec3 spec, float p, vec3 ref);
     void set(vec3 diff, vec3 spec, float p, vec3 ref);
-    vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
-    vec3 getReflectance();
+    vec3 BRDF(vec3 incoming, vec3 outgoing);
+    vec3 randDir();
 };
 
 class Sphere {
@@ -57,8 +58,8 @@ public:
     void set(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref);
     bool intersects(Ray ray, float &time, float minTime, float maxTime);
     bool intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime);
-    vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
-    vec3 getReflectance();
+    //vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
+    //vec3 getReflectance();
 };
 
 class Mesh {
@@ -74,8 +75,8 @@ public:
     vec3 getNormal();
     bool intersects(Ray ray, float &time, float minTime, float maxTime);
     bool intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime);
-    vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
-    vec3 getReflectance();
+    //vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
+    //vec3 getReflectance();
 };
 
 

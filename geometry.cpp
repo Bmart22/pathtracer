@@ -16,6 +16,7 @@ Material::Material() {
     specular = vec3(0.0f);
     phongExp = 0;
     reflectance = vec3(0.0f);
+    emission = vec3(0.0f);
 }
 
 Material::Material(vec3 diff, vec3 spec, float p, vec3 ref) {
@@ -32,24 +33,24 @@ void Material::set(vec3 diff, vec3 spec, float p, vec3 ref) {
     reflectance = ref;
 }
 
-vec3 Material::calcShading(vec3 normal, Light light, vec3 lightDir) {
-    vec3 total = vec3(0.0f);
-    
-    //Calculate diffuse component
-    float LdotN = glm::dot(lightDir, normal);
-    total += diffuse * light.intensity * glm::max(LdotN, 0.0f);
-    
-    //Calculate specular component
-    vec3 halfvec = glm::normalize(lightDir + normal);
-    float NdotH = glm::dot(normal, halfvec);
-    total += specular * light.intensity * glm::pow( glm::max(NdotH, 0.0f), phongExp );
-    
-    return glm::min( total, vec3(255,255,255) );
-}
+//vec3 Material::calcShading(vec3 normal, Light light, vec3 lightDir) {
+//    vec3 total = vec3(0.0f);
+//
+//    //Calculate diffuse component
+//    float LdotN = glm::dot(lightDir, normal);
+//    total += diffuse * light.intensity * glm::max(LdotN, 0.0f);
+//
+//    //Calculate specular component
+//    vec3 halfvec = glm::normalize(lightDir + normal);
+//    float NdotH = glm::dot(normal, halfvec);
+//    total += specular * light.intensity * glm::pow( glm::max(NdotH, 0.0f), phongExp );
+//
+//    return glm::min( total, vec3(255,255,255) );
+//}
 
-vec3 Material::getReflectance() {
-    return reflectance;
-}
+//vec3 Material::getReflectance() {
+//    return reflectance;
+//}
 
 
 

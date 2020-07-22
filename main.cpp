@@ -50,10 +50,10 @@ Ray genCameraRay( int xCoor, int yCoor ) {
 }
 
 // Function is called once per view ray
-vec3 raytrace( Ray ray, int depth = 0 ) {
+vec3 tracepath( Ray ray, int depth = 0 ) {
     
     // Exit Condition
-    if (depth > 1) { return vec3(0.0f); }
+    if (depth > 5) { return vec3(0.0f); }
     
     vec3 color = vec3(0,0,0);
     vec3 location = vec3(0,0,0);
@@ -70,38 +70,48 @@ vec3 raytrace( Ray ray, int depth = 0 ) {
     }
 
     if (closestObj != -1) {
+        
+        // If the closest objects is a light, return the emission of the light
+        if (objects[closestObj].emissive != vec3(0.0f)) {
+            return objects[closestObj].emissive;
+        }
+        
+        // Otherwise, calculate the value of the object
+        calculate BRDF;
+        gen new ray;
+        color += BRDF * pathtrace(ray, depth+1) * cos(theta) / prob(ray);
+        
         // Dummy variable to pass to the intersects function in place of time
-        float dummy;
+        //float dummy;
         
         // Ambient term
-        color += vec3(0.1f);
-        bool inShadow;
+        //color += vec3(0.1f);
+        //bool inShadow;
         
-        // Loop over every light in the scene
-        for (int i = 0; i < lightsUsed; i++) {
-            vec3 lightDir = glm::normalize(lights[i].position-location);
-            
-            //Test to see if any object blocks the light
-            Ray shadowRay = {location,lightDir};
-            inShadow = false;
-            int o = 0;
-            while (o < numObjects && inShadow == false) {
-                inShadow = objects[o].intersects(shadowRay, dummy, 0.001, std::numeric_limits<float>::infinity());
-                o++;
-            }
-            // If the object is not in shadow, calculate the lighting
-            if (inShadow == false) {
-                color += objects[closestObj].calcShading(normal, lights[i], lightDir);
-            }
-        }
+//        // Loop over every light in the scene
+//        for (int i = 0; i < lightsUsed; i++) {
+//            vec3 lightDir = glm::normalize(lights[i].position-location);
+//
+//            //Test to see if any object blocks the light
+//            Ray shadowRay = {location,lightDir};
+//            inShadow = false;
+//            int o = 0;
+//            while (o < numObjects && inShadow == false) {
+//                inShadow = objects[o].intersects(shadowRay, dummy, 0.001, std::numeric_limits<float>::infinity());
+//                o++;
+//            }
+//            // If the object is not in shadow, calculate the lighting
+//            if (inShadow == false) {
+//                color += objects[closestObj].calcShading(normal, lights[i], lightDir);
+//            }
+//        }
     }
     
-    ray.origin = location;
-    ray.path = ray.path - 2*(glm::dot(ray.path,normal))*normal;
+    // Calculate Reflection ray
+//    ray.origin = location;
+//    ray.path = ray.path - 2*(glm::dot(ray.path,normal))*normal;
     
-    color = color + objects[closestObj].getReflectance() * raytrace(ray, depth+1);
-    
-    return glm::min( color, vec3(255,255,255) );
+    return color;
 }
 
 int main(int argc, char* argv[]) {
@@ -128,7 +138,7 @@ int main(int argc, char* argv[]) {
     RGBQUAD color;
     for (int i = 0; i < screenWidth; i++) {
         for (int j = 0; j < screenHeight; j++) {
-            vec3 colVec = raytrace( genCameraRay(i,j) );
+            vec3 colVec = tracepath( genCameraRay(i,j) );
             color.rgbRed = colVec.z;
             color.rgbGreen = colVec.y;
             color.rgbBlue = colVec.x;
