@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include "geometry.hpp"
+#include <stdlib.h>
 
 
 // Material Class
@@ -31,6 +32,27 @@ void Material::set(vec3 diff, vec3 spec, float p, vec3 ref) {
     specular = spec;
     phongExp = p;
     reflectance = ref;
+}
+
+// Chooses a random incoming direction based on a uniform probability distribution
+void randDir(vec3 normal, vec3 &direction, float &probability) {
+    // Generate two random floats in range (0,1)
+    float x = static_cast <float> (std::rand()) / static_cast <float> (std::RAND_MAX);
+    float y = static_cast <float> (std::rand()) / static_cast <float> (std::RAND_MAX);
+    
+    float s = glm::sqrt(1 - (x*x));
+    vec3 randVec = vec3( s * glm::cos(2* glm::pi() *y), s * glm::sin(2* glm::pi() *y), x);
+    
+    if (normal != vec3(0.0,0.0,1.0)) {
+        vec3 yaxis = glm::normalize( glm::cross( normal, vec3(0.0,0.0,1.0) ) );
+    } else {
+        vec3 yaxis = glm::normalize( glm::cross( normal, vec3(0.0,1.0,0.0) ) );
+    }
+    vec3 xaxis = glm::normalize( glm::cross( yaxis, normal ) );
+    
+    direction = glm::mat3( xaxis, yaxis, normal ) * randVec;
+    probability = 1/( 2*glm::pi() );
+    
 }
 
 //vec3 Material::calcShading(vec3 normal, Light light, vec3 lightDir) {

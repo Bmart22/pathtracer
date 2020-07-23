@@ -45,7 +45,9 @@ public:
     Material(vec3 diff, vec3 spec, float p, vec3 ref);
     void set(vec3 diff, vec3 spec, float p, vec3 ref);
     vec3 BRDF(vec3 incoming, vec3 outgoing);
-    vec3 randDir();
+    
+    // Chooses a random incoming direction based on a probability distribution
+    void randDir(vec3 &direction, float &probability);
 };
 
 class Sphere {
