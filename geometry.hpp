@@ -42,9 +42,11 @@ class Material {
     
 public:
     Material();
-    Material(vec3 diff, vec3 spec, float p, vec3 ref);
-    void set(vec3 diff, vec3 spec, float p, vec3 ref);
-    vec3 BRDF(vec3 incoming, vec3 outgoing);
+    Material(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
+    void set(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
+    
+    // For a pure, Lambertian (diffuse) surface
+    float BRDF(vec3 normal, vec3 incoming, vec3 outgoing);
     
     // Chooses a random incoming direction based on a probability distribution
     void randDir(vec3 &direction, float &probability);
@@ -56,10 +58,13 @@ class Sphere {
     Material material;
 public:
     Sphere();
-    Sphere(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref);
-    void set(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref);
+    Sphere(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
+    void set(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
     bool intersects(Ray ray, float &time, float minTime, float maxTime);
     bool intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime);
+    
+    float BRDF(vec3 normal, vec3 incoming, vec3 outgoing);
+    void randDir(vec3 &direction, float &probability);
     //vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
     //vec3 getReflectance();
 };

@@ -21,8 +21,8 @@ typedef glm::vec4 vec4;
 float screenHeight = 500;
 float screenWidth = 500;
 
-struct Light lights[10];
-int lightsUsed;
+//struct Light lights[10];
+//int lightsUsed;
 
 struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
 
@@ -76,59 +76,53 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
             return objects[closestObj].emissive;
         }
         
-        // Otherwise, calculate the value of the object
-        calculate BRDF;
-        gen new ray;
-        color += BRDF * pathtrace(ray, depth+1) * cos(theta) / prob(ray);
+        // Otherwise, calculate the light reflecting off the object
         
-        // Dummy variable to pass to the intersects function in place of time
-        //float dummy;
+        // Generate new random direction and the probability of choosing that direction
+        vec3 incoming;
+        float prob;
+        randDir(incoming, prob);
         
-        // Ambient term
-        //color += vec3(0.1f);
-        //bool inShadow;
+        // Calculate the amount of incoming light reflected in the outgoing direction
+        float brdf = BRDF(normal, incoming, ray.path);
         
-//        // Loop over every light in the scene
-//        for (int i = 0; i < lightsUsed; i++) {
-//            vec3 lightDir = glm::normalize(lights[i].position-location);
-//
-//            //Test to see if any object blocks the light
-//            Ray shadowRay = {location,lightDir};
-//            inShadow = false;
-//            int o = 0;
-//            while (o < numObjects && inShadow == false) {
-//                inShadow = objects[o].intersects(shadowRay, dummy, 0.001, std::numeric_limits<float>::infinity());
-//                o++;
-//            }
-//            // If the object is not in shadow, calculate the lighting
-//            if (inShadow == false) {
-//                color += objects[closestObj].calcShading(normal, lights[i], lightDir);
-//            }
-//        }
+        // Calculate the cos of angle between normal vector and incoming light
+        float cos_theta = glm::dot(-glm::normalize(incoming), normal);
+        
+        // Record new ray to trace
+        ray.origin = location;
+        ray.path = incoming;
+        
+        // Compute the transport equation, continue to recurse
+        color += brdf * tracepath(ray, depth+1) * cos_theta / prob;
     }
-    
-    // Calculate Reflection ray
-//    ray.origin = location;
-//    ray.path = ray.path - 2*(glm::dot(ray.path,normal))*normal;
     
     return color;
 }
 
 int main(int argc, char* argv[]) {
-    lights[0].position = vec3(5,5,0);
-    lights[0].intensity = vec3(1,1,1);
-    lights[1].position = vec3(0,5,0);
-    lights[1].intensity = vec3(0.5,0.5,0.5);
-    lightsUsed = 2;
+//    lights[0].position = vec3(5,5,0);
+//    lights[0].intensity = vec3(1,1,1);
+//    lights[1].position = vec3(0,5,0);
+//    lights[1].intensity = vec3(0.5,0.5,0.5);
+//    lightsUsed = 2;
     
-    objects[1].set(vec3(3,0,0), 3, vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f));
-    objects[0].set(vec3(-3,0,0), 2, vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f));
+    // Objects
+    objects[0].set(vec3(3,0,0), 3, vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
+    objects[1].set(vec3(-3,0,0), 2, vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
+    
+    // Lights
+    objects[2].set(vec3(5,5,0), 1, vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
+    objects[3].set(vec3(5,5,0), 1, vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
+    
+    numObjects = 4;
+    
     
 //    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
 //    objects[0].set(verts, vec3(100,100,100), vec3(0,0,0), 100, vec3(0.0f));
 //    float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
 //    objects[1].set(verts2, vec3(200,0,0), vec3(100,100,100), 100, vec3(0,0.6,0));
-    numObjects = 2;
+    
 
     FreeImage_Initialise();
 

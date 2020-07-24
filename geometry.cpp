@@ -17,25 +17,33 @@ Material::Material() {
     specular = vec3(0.0f);
     phongExp = 0;
     reflectance = vec3(0.0f);
-    emission = vec3(0.0f);
+    emissive = vec3(0.0f);
 }
 
-Material::Material(vec3 diff, vec3 spec, float p, vec3 ref) {
+Material::Material(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em) {
     diffuse = diff;
     specular = spec;
     phongExp = p;
     reflectance = ref;
+    emissive = em;
+    
 }
 
-void Material::set(vec3 diff, vec3 spec, float p, vec3 ref) {
+void Material::set(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em) {
     diffuse = diff;
     specular = spec;
     phongExp = p;
     reflectance = ref;
+    emissive = em;
+}
+
+// For a pure, Lambertian (diffuse) surface
+float Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
+    return glm::dot(-incoming, normal);
 }
 
 // Chooses a random incoming direction based on a uniform probability distribution
-void randDir(vec3 normal, vec3 &direction, float &probability) {
+void Material::randDir(vec3 normal, vec3 &direction, float &probability) {
     // Generate two random floats in range (0,1)
     float x = static_cast <float> (std::rand()) / static_cast <float> (std::RAND_MAX);
     float y = static_cast <float> (std::rand()) / static_cast <float> (std::RAND_MAX);
@@ -82,20 +90,20 @@ void randDir(vec3 normal, vec3 &direction, float &probability) {
 Sphere::Sphere() {
     position = vec3(0.0f);
     radius = 0;
-    material.set( vec3(0.0f), vec3(0.0f), 0, vec3(0.0f) );
+    material.set( vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(0.0f) );
 }
 
 // Constructor for the Sphere class
-Sphere::Sphere(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref) {
+Sphere::Sphere(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref, vec3 em) {
     position = pos;
     radius = rad;
-    material.set(diff, spec, p, ref);
+    material.set(diff, spec, p, ref, em);
 }
 
-void Sphere::set(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref) {
+void Sphere::set(vec3 pos, float rad, vec3 diff, vec3 spec, float p, vec3 ref, vec3 em) {
     position = pos;
     radius = rad;
-    material.set(diff, spec, p, ref);
+    material.set(diff, spec, p, ref, em);
 }
 
 bool Sphere::intersects(Ray ray, float &time, float minTime, float maxTime) {
@@ -145,13 +153,21 @@ bool Sphere::intersects(Ray ray, vec3 &location, vec3 &normal, float &time, floa
     return success;
 }
 
-vec3 Sphere::calcShading(vec3 normal, Light light, vec3 lightDir) {
-    return material.calcShading(normal, light, lightDir);
+float Sphere::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
+    return material.BRDF(normal, incoming, outgoing);
 }
 
-vec3 Sphere::getReflectance() {
-    return material.getReflectance();
+void Sphere::randDir(vec3 &direction, float &probability) {
+    return material.randDir(direction, probability);
 }
+
+//vec3 Sphere::calcShading(vec3 normal, Light light, vec3 lightDir) {
+//    return material.calcShading(normal, light, lightDir);
+//}
+//
+//vec3 Sphere::getReflectance() {
+//    return material.getReflectance();
+//}
 
 
 
