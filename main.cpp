@@ -29,6 +29,7 @@ struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
 //Sphere objects[10];
 Sphere objects[10];
 int numObjects;
+Material materials[10];
 
 Ray genCameraRay( int xCoor, int yCoor ) {
     float worldHeight = screenHeight / 100;
@@ -72,8 +73,8 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
     if (closestObj != -1) {
         
         // If the closest objects is a light, return the emission of the light
-        if (objects[closestObj].emissive != vec3(0.0f)) {
-            return objects[closestObj].emissive;
+        if (objects[closestObj].getMaterial()->isLight()) {
+            return objects[closestObj].getMaterial()->getEmissive();
         }
         
         // Otherwise, calculate the light reflecting off the object
@@ -81,10 +82,10 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
         // Generate new random direction and the probability of choosing that direction
         vec3 incoming;
         float prob;
-        randDir(incoming, prob);
+        objects[closestObj].randDir(normal, incoming, prob);
         
         // Calculate the amount of incoming light reflected in the outgoing direction
-        float brdf = BRDF(normal, incoming, ray.path);
+        float brdf = objects[closestObj].BRDF(normal, incoming, ray.path);
         
         // Calculate the cos of angle between normal vector and incoming light
         float cos_theta = glm::dot(-glm::normalize(incoming), normal);
@@ -107,13 +108,19 @@ int main(int argc, char* argv[]) {
 //    lights[1].intensity = vec3(0.5,0.5,0.5);
 //    lightsUsed = 2;
     
+    // Materials
+    materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
+    materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
+    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
+    
+    
     // Objects
-    objects[0].set(vec3(3,0,0), 3, vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
-    objects[1].set(vec3(-3,0,0), 2, vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
+    objects[0].set(vec3(3,0,0), 3, materials[0]);
+    objects[1].set(vec3(-3,0,0), 2, materials[1]);
     
     // Lights
-    objects[2].set(vec3(5,5,0), 1, vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
-    objects[3].set(vec3(5,5,0), 1, vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
+    objects[2].set(vec3(5,5,0), 1, materials[2]);
+    objects[3].set(vec3(5,5,0), 1, materials[2]);
     
     numObjects = 4;
     
@@ -129,10 +136,16 @@ int main(int argc, char* argv[]) {
     int bitsPerPixel = 24;
     FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
     
+    int numSamples = 16;
+    vec3 colVec;
     RGBQUAD color;
     for (int i = 0; i < screenWidth; i++) {
         for (int j = 0; j < screenHeight; j++) {
-            vec3 colVec = tracepath( genCameraRay(i,j) );
+            colVec = vec3(0.0f);
+            for (int n = 0; n < numSamples; n++) {
+                colVec += tracepath( genCameraRay(i,j) );
+            }
+            colVec = colVec / (float)numSamples;
             color.rgbRed = colVec.z;
             color.rgbGreen = colVec.y;
             color.rgbBlue = colVec.x;
