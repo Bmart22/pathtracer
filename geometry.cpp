@@ -47,19 +47,21 @@ vec3 Material::getEmissive() {
 }
 
 // For a pure, Lambertian (diffuse) surface
-float Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
-    return glm::dot(-incoming, normal);
+vec3 Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
+    return vec3( glm::dot(-incoming, normal) );
 }
 
 // Chooses a random incoming direction based on a uniform probability distribution
 void Material::randDir(vec3 normal, vec3 &direction, float &probability) {
-    // Generate two random floats in range (0,1)
-    float x = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    float y = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    
     float PI = glm::pi<float>();
-    float s = glm::sqrt(1 - (x*x));
-    vec3 randVec = vec3( s * glm::cos(2* PI *y), s * glm::sin(2* PI *y), x);
+    
+    // Generate two random floats in range (0,1)
+    float cosTheta = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    float phi = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    phi = phi * PI * 2;
+
+    float sinTheta = glm::sqrt(1 - (cosTheta*cosTheta));
+    vec3 randVec = vec3( sinTheta * glm::cos(phi), sinTheta * glm::sin(phi), cosTheta);
     
     vec3 yaxis;
     if (normal != vec3(0.0,0.0,1.0)) {
@@ -73,26 +75,6 @@ void Material::randDir(vec3 normal, vec3 &direction, float &probability) {
     probability = 1/( 2*PI );
     
 }
-
-//vec3 Material::calcShading(vec3 normal, Light light, vec3 lightDir) {
-//    vec3 total = vec3(0.0f);
-//
-//    //Calculate diffuse component
-//    float LdotN = glm::dot(lightDir, normal);
-//    total += diffuse * light.intensity * glm::max(LdotN, 0.0f);
-//
-//    //Calculate specular component
-//    vec3 halfvec = glm::normalize(lightDir + normal);
-//    float NdotH = glm::dot(normal, halfvec);
-//    total += specular * light.intensity * glm::pow( glm::max(NdotH, 0.0f), phongExp );
-//
-//    return glm::min( total, vec3(255,255,255) );
-//}
-
-//vec3 Material::getReflectance() {
-//    return reflectance;
-//}
-
 
 
 // Sphere Class
@@ -117,6 +99,50 @@ void Sphere::set(vec3 pos, float rad, Material mat) {
     radius = rad;
     material = mat;
     //material.set(diff, spec, p, ref, em);
+}
+
+vec3 Sphere::getPosition() {
+    return position;
+}
+
+float Sphere::getRadius() {
+    return radius;
+}
+
+Material* Sphere::getMaterial() {
+    return &material;
+}
+
+bool Sphere::intersects(Ray ray, float minTime, float maxTime) {
+    float t = 0.0;
+    
+    // Origin minus position (OMP)
+    vec3 OMP = ray.origin - position;
+    float path_2 = glm::dot(ray.path, ray.path);
+    
+    // Calculate the discriminant
+    float discriminant = glm::dot(ray.path, OMP)*glm::dot(ray.path, OMP) - path_2 * (glm::dot(OMP,OMP) - (radius*radius));
+    
+    // If the dicriminant is less than 0, the ray does not intersect the sphere
+    if (discriminant < 0.0) {
+        return false;
+    }
+    // Otherwise, the ray intersects the sphere at least once.
+    else{
+        // Find the time value when discriminant = 0 (tangential intersection)
+        t = glm::dot(-ray.path, OMP) / path_2;
+        
+        // If the discriminant is non-zero, there are two intersections
+        // Find the smaller of the two time values
+        if (discriminant > 0.0) {
+            t = t - (glm::sqrt(discriminant)/path_2);
+        }
+        
+        if (t > minTime && t < maxTime) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool Sphere::intersects(Ray ray, float &time, float minTime, float maxTime) {
@@ -166,26 +192,34 @@ bool Sphere::intersects(Ray ray, vec3 &location, vec3 &normal, float &time, floa
     return success;
 }
 
-Material* Sphere::getMaterial() {
-    return &material;
+void Sphere::sampleLight(vec3 location, vec3 &direction, float &probability) {
+    float d = glm::distance(position, location);
+    float r = radius;
+    float cosThetaMax = glm::sqrt(d*d - r*r)/d;
+    
+    float PI = glm::pi<float>();
+    
+    // Generate two random floats in range (0,1)
+    float cosTheta = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    cosTheta = glm::mix(cosThetaMax, 1.0f, cosTheta);
+    float phi = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    phi = phi * PI * 2;
+
+    float sinTheta = glm::sqrt(1 - (cosTheta*cosTheta));
+    vec3 randVec = vec3( sinTheta * glm::cos(phi), sinTheta * glm::sin(phi), cosTheta);
+    
+    vec3 zaxis = glm::normalize(position - location);
+    vec3 yaxis;
+    if (zaxis != vec3(0.0,0.0,1.0)) {
+        yaxis = glm::normalize( glm::cross( zaxis, vec3(0.0,0.0,1.0) ) );
+    } else {
+        yaxis = glm::normalize( glm::cross( zaxis, vec3(0.0,1.0,0.0) ) );
+    }
+    vec3 xaxis = glm::normalize( glm::cross( yaxis, zaxis ) );
+    
+    direction = glm::mat3( xaxis, yaxis, zaxis ) * randVec;
+    probability = 1/( 2*PI*(1-cosThetaMax) );
 }
-
-float Sphere::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
-    return material.BRDF(normal, incoming, outgoing);
-}
-
-void Sphere::randDir(vec3 normal, vec3 &direction, float &probability) {
-    return material.randDir(normal, direction, probability);
-}
-
-//vec3 Sphere::calcShading(vec3 normal, Light light, vec3 lightDir) {
-//    return material.calcShading(normal, light, lightDir);
-//}
-//
-//vec3 Sphere::getReflectance() {
-//    return material.getReflectance();
-//}
-
 
 
 // Mesh Class

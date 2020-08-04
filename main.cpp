@@ -21,8 +21,8 @@ typedef glm::vec4 vec4;
 float screenHeight = 500;
 float screenWidth = 500;
 
-//struct Light lights[10];
-//int lightsUsed;
+struct Sphere lights[10];
+int lightsUsed;
 
 struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
 
@@ -45,9 +45,36 @@ Ray genCameraRay( int xCoor, int yCoor ) {
     camRay.origin = cam.position;
     // FreeImage begins at the lower left corner
     camRay.path = (cam.focalLength * glm::normalize(cam.direction)) + (u*right) + (v*up);
-    //std::cout << glm::normalize(cam.direction).y;
     
     return camRay;
+}
+
+//vec3 genDirect(float cosThetaMax, vec3 location, Sphere light) {
+//
+//}
+
+int findClosestObject(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime) {
+    
+    int closestObj = -1;
+    for (int obj = 0; obj < numObjects; obj++) {
+        // If the current object is intersected and closer than the previous object
+        if (objects[obj].intersects(ray, location, normal, time, minTime, time)) {
+            closestObj = obj;
+        }
+    }
+    return closestObj;
+}
+
+int findClosestLight(Ray ray, float &time, float minTime, float maxTime) {
+
+    int closestLight = -1;
+    for (int l = 0; l < lightsUsed; l++) {
+        // If the current object is intersected and closer than the previous object
+        if (lights[l].intersects(ray, time, 0.01, maxTime)) {
+            closestLight = l;
+        }
+    }
+    return closestLight;
 }
 
 // Function is called once per view ray
@@ -57,35 +84,61 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
     if (depth > 5) { return vec3(0.0f); }
     
     vec3 color = vec3(0,0,0);
+    
+    // Find the closest object
     vec3 location = vec3(0,0,0);
     vec3 normal = vec3(0,0,0);
     float time = std::numeric_limits<float>::infinity();
-    int closestObj = -1;
+    int closestObj = findClosestObject(ray, location, normal, time, 0.01, time);
     
-    // Loop over every object
-    for (int obj = 0; obj < numObjects; obj++) {
-        // If the current object is intersected and closer than the previous object
-        if (objects[obj].intersects(ray, location, normal, time, 0.01, time)) {
-            closestObj = obj;
-        }
+    // Find closest light
+    float lightTime = std::numeric_limits<float>::infinity();
+    int closestLight = findClosestLight(ray, lightTime, 0.01, time);
+    
+    // Check if a light has been hit and the light is closer than the nearest object
+    if (closestLight != -1 && lightTime < time) {
+        // Return the emission of the light
+        return lights[closestLight].getMaterial()->getEmissive();
     }
-
+    
+    // Otherwise, if an object has been hit
     if (closestObj != -1) {
         
-        // If the closest objects is a light, return the emission of the light
-        if (objects[closestObj].getMaterial()->isLight()) {
-            return objects[closestObj].getMaterial()->getEmissive();
+        // Sample direct illumination
+        if (depth == 0) {
+            for (int l = 0; l < lightsUsed; l++) {
+                vec3 incoming;
+                float prob;
+                lights[l].sampleLight(location, incoming, prob);
+                
+                Ray directRay = {location, incoming};
+                float shadowBound;
+                lights[l].intersects(directRay, shadowBound, 0.01, std::numeric_limits<float>::infinity());
+                
+                bool inShadow = false;
+                int obj = 0;
+                while (!inShadow && obj < numObjects) {
+                    // Check if the light is in shadow
+                    inShadow = objects[obj].intersects(directRay, 0.01, shadowBound);
+                    obj++;
+                }
+                
+                if (!inShadow) {
+                    color += lights[l].getMaterial()->getEmissive() / prob;
+                }
+            }
+            
         }
         
-        // Otherwise, calculate the light reflecting off the object
+        // Sample Indirect Lighting
         
         // Generate new random direction and the probability of choosing that direction
         vec3 incoming;
         float prob;
-        objects[closestObj].randDir(normal, incoming, prob);
+        objects[closestObj].getMaterial()->randDir(normal, incoming, prob);
         
         // Calculate the amount of incoming light reflected in the outgoing direction
-        float brdf = objects[closestObj].BRDF(normal, incoming, ray.path);
+        vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, ray.path);
         
         // Calculate the cos of angle between normal vector and incoming light
         float cos_theta = glm::dot(-glm::normalize(incoming), normal);
@@ -108,22 +161,23 @@ int main(int argc, char* argv[]) {
 //    lights[1].intensity = vec3(0.5,0.5,0.5);
 //    lightsUsed = 2;
     
-    // Materials
+    // Materials for objects
     materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
     materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
-    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(100));
+    
+    // Material for light
+    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(200));
     
     
     // Objects
     objects[0].set(vec3(3,0,0), 3, materials[0]);
     objects[1].set(vec3(-3,0,0), 2, materials[1]);
+    numObjects = 2;
     
     // Lights
-    objects[2].set(vec3(5,5,0), 1, materials[2]);
-    objects[3].set(vec3(5,5,0), 1, materials[2]);
-    
-    numObjects = 4;
-    
+    lights[0].set(vec3(-5,5,0), 1, materials[2]);
+    lights[1].set(vec3(0,5,0), 1, materials[2]);
+    lightsUsed = 2;
     
 //    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
 //    objects[0].set(verts, vec3(100,100,100), vec3(0,0,0), 100, vec3(0.0f));
@@ -146,6 +200,9 @@ int main(int argc, char* argv[]) {
                 colVec += tracepath( genCameraRay(i,j) );
             }
             colVec = colVec / (float)numSamples;
+            
+            // Clamp color values
+            colVec = glm::min(colVec, vec3(255));
             color.rgbRed = colVec.z;
             color.rgbGreen = colVec.y;
             color.rgbBlue = colVec.x;
