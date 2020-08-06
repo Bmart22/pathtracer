@@ -27,7 +27,7 @@ int lightsUsed;
 struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
 
 //Sphere objects[10];
-Sphere objects[10];
+Mesh objects[10];
 int numObjects;
 Material materials[10];
 
@@ -80,9 +80,6 @@ int findClosestLight(Ray ray, float &time, float minTime, float maxTime) {
 // Function is called once per view ray
 vec3 tracepath( Ray ray, int depth = 0 ) {
     
-    // Exit Condition
-    if (depth > 5) { return vec3(0.0f); }
-    
     vec3 color = vec3(0,0,0);
     
     // Find the closest object
@@ -132,23 +129,30 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
         
         // Sample Indirect Lighting
         
-        // Generate new random direction and the probability of choosing that direction
-        vec3 incoming;
-        float prob;
-        objects[closestObj].getMaterial()->randDir(normal, incoming, prob);
+        // Exit Condition: Russian Roulette
+        float rouletteCutoff = 0.2;
+        float roulette = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
         
-        // Calculate the amount of incoming light reflected in the outgoing direction
-        vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, ray.path);
+        if (roulette > rouletteCutoff) {
         
-        // Calculate the cos of angle between normal vector and incoming light
-        float cos_theta = glm::dot(-glm::normalize(incoming), normal);
-        
-        // Record new ray to trace
-        ray.origin = location;
-        ray.path = incoming;
-        
-        // Compute the transport equation, continue to recurse
-        color += brdf * tracepath(ray, depth+1) * cos_theta / prob;
+            // Generate new random direction and the probability of choosing that direction
+            vec3 incoming;
+            float prob;
+            objects[closestObj].getMaterial()->randDir(normal, incoming, prob);
+            
+            // Calculate the amount of incoming light reflected in the outgoing direction
+            vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, ray.path);
+            
+            // Calculate the cos of angle between normal vector and incoming light
+            float cos_theta = glm::dot(-glm::normalize(incoming), normal);
+            
+            // Record new ray to trace
+            ray.origin = location;
+            ray.path = incoming;
+            
+            // Compute the transport equation, continue to recurse
+            color += brdf * tracepath(ray, depth+1) * cos_theta / (prob * (1-rouletteCutoff));
+        }
     }
     
     return color;
@@ -166,31 +170,31 @@ int main(int argc, char* argv[]) {
     materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
     
     // Material for light
-    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(200));
+    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(150));
     
     
     // Objects
-    objects[0].set(vec3(3,0,0), 3, materials[0]);
-    objects[1].set(vec3(-3,0,0), 2, materials[1]);
-    numObjects = 2;
+//    objects[0].set(vec3(3,0,0), 3, materials[0]);
+//    objects[1].set(vec3(-3,0,0), 2, materials[1]);
+//    numObjects = 2;
     
     // Lights
-    lights[0].set(vec3(-5,5,0), 1, materials[2]);
+    lights[0].set(vec3(5,5,0), 1, materials[2]);
     lights[1].set(vec3(0,5,0), 1, materials[2]);
     lightsUsed = 2;
     
-//    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
-//    objects[0].set(verts, vec3(100,100,100), vec3(0,0,0), 100, vec3(0.0f));
-//    float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
-//    objects[1].set(verts2, vec3(200,0,0), vec3(100,100,100), 100, vec3(0,0.6,0));
-    
+    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
+    objects[0].set(verts, materials[0]);
+    float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
+    objects[1].set(verts2, materials[1]);
+    numObjects = 2;
 
     FreeImage_Initialise();
 
     int bitsPerPixel = 24;
     FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
     
-    int numSamples = 16;
+    int numSamples = 32;
     vec3 colVec;
     RGBQUAD color;
     for (int i = 0; i < screenWidth; i++) {

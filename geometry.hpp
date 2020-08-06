@@ -77,22 +77,24 @@ public:
 
 };
 
-//class Mesh {
-//    // Vertices are stored counterclockwise
-//    float vertices[9];
-//    Material material;
-//
-//public:
-//    Mesh();
-//    Mesh(float verts[], vec3 diff, vec3 spec, float p, vec3 ref);
-//    void set(float verts[], vec3 diff, vec3 spec, float p, vec3 ref);
-//    vec3 getVertex( int ind );
-//    vec3 getNormal();
-//    bool intersects(Ray ray, float &time, float minTime, float maxTime);
-//    bool intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime);
-//    //vec3 calcShading(vec3 normal, Light light, vec3 lightDir);
-//    //vec3 getReflectance();
-//};
+class Mesh {
+    // Vertices are stored counterclockwise
+    float vertices[9];
+    Material material;
+
+public:
+    Mesh();
+    Mesh(float verts[], Material mat);
+    void set(float verts[], Material mat);
+    
+    vec3 getVertex( int ind );
+    vec3 getNormal();
+    Material* getMaterial();
+    
+    bool intersects(Ray ray, float minTime, float maxTime );
+    bool intersects(Ray ray, float &time, float minTime, float maxTime);
+    bool intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime);
+};
 
 
 

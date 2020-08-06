@@ -91,14 +91,12 @@ Sphere::Sphere(vec3 pos, float rad, Material mat) {
     position = pos;
     radius = rad;
     material = mat;
-    //material.set(diff, spec, p, ref, em);
 }
 
 void Sphere::set(vec3 pos, float rad, Material mat) {
     position = pos;
     radius = rad;
     material = mat;
-    //material.set(diff, spec, p, ref, em);
 }
 
 vec3 Sphere::getPosition() {
@@ -224,98 +222,101 @@ void Sphere::sampleLight(vec3 location, vec3 &direction, float &probability) {
 
 // Mesh Class
 //
-//// Default constructor
-//Mesh::Mesh() {
-//    for (int i = 0; i < 9; i++) {
-//        vertices[i] = 0;
-//    }
-//}
-//
-//// Vertices are stored counterclockwise
-//Mesh::Mesh(float verts[], vec3 diff, vec3 spec, float p, vec3 ref) {
-//    for (int i = 0; i < 9; i++) {
-//        vertices[i] = verts[i];
-//    }
-//    material.set(diff, spec, p, ref);
-//}
-//
-//void Mesh::set(float verts[], vec3 diff, vec3 spec, float p, vec3 ref) {
-//    for (int i = 0; i < 9; i++) {
-//        vertices[i] = verts[i];
-//    }
-//    material.set(diff, spec, p, ref);
-//}
-//
-//vec3 Mesh::getVertex( int ind ) {
-//    if (ind >= 0 && ind < 3) {
-//        return vec3( vertices[(ind*3)+0], vertices[(ind*3)+1], vertices[(ind*3)+2] );
-//    }
-//    return vec3(0,0,0);
-//}
-//
-//vec3 Mesh::getNormal() {
-//    vec3 edge1 = getVertex(1) - getVertex(0);
-//    vec3 edge2 = getVertex(2) - getVertex(0);
-//    return glm::normalize( glm::cross(edge1, edge2) );
-//}
-//
-//bool Mesh::intersects(Ray ray, float &time, float minTime, float maxTime) {
-//    vec3 edge_ba = getVertex(0) - getVertex(1);
-//    vec3 edge_ca = getVertex(0) - getVertex(2);
-//    vec3 aMinusOrigin = getVertex(0) - ray.origin;
-//
-//    float ei_hf = edge_ca[1] * ray.path[2] - ray.path[1] * edge_ca[2];
-//    float gf_di = -(edge_ca[0] * ray.path[2] - ray.path[0] * edge_ca[2]);
-//    float dh_eg = edge_ca[0] * ray.path[1] - ray.path[0] * edge_ca[1];
-//
-//    float M = edge_ba[0] * ei_hf + edge_ba[1] * gf_di + edge_ba[2] * dh_eg;
-//
-//
-//    float beta = (aMinusOrigin[0] * ei_hf + aMinusOrigin[1] * gf_di + aMinusOrigin[2] * dh_eg) / M;
-//
-//    // Condition for early termination
-//    if (beta < 0 || beta > 1) {
-//        return false;
-//    }
-//
-//    float ak_jb = edge_ba[0] * aMinusOrigin[1] - aMinusOrigin[0] * edge_ba[1];
-//    float jc_al = -(edge_ba[0] * aMinusOrigin[2] - aMinusOrigin[0] * edge_ba[2]);
-//    float bl_kc = edge_ba[1] * aMinusOrigin[2] - aMinusOrigin[1] * edge_ba[2];
-//
-//    float gamma = (ray.path[2] * ak_jb + ray.path[1] * jc_al + ray.path[0] * bl_kc) / M;
-//
-//    // Condition for early termination
-//    if (gamma < 0 || gamma > 1-beta) {
-//        return false;
-//    }
-//
-//    // If we have gotten this far, the ray has hit the triangle
-//    // Calculate necessary values
-//    float t = -(edge_ca[2] * ak_jb + edge_ca[1] * jc_al + edge_ca[0] * bl_kc) / M;
-//    if (t > minTime && t < maxTime) {
-//        time = t;
-//        return true;
-//    }
-//
-//    return false;
-//}
-//
-//bool Mesh::intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime) {
-//    bool success = intersects(ray, time, minTime, maxTime);
-//
-//    if (success) {
-//        location = ray.origin + (time * ray.path);
-//        normal = getNormal();
-//    }
-//
-//    return success;
-//}
-//
-//vec3 Mesh::calcShading(vec3 normal, Light light, vec3 lightDir) {
-//    return material.calcShading(normal, light, lightDir);
-//}
-//
-//vec3 Mesh::getReflectance() {
-//    return material.getReflectance();
-//}
+// Default constructor
+Mesh::Mesh() {
+    for (int i = 0; i < 9; i++) {
+        vertices[i] = 0;
+    }
+}
+
+// Vertices are stored counterclockwise
+Mesh::Mesh(float verts[], Material mat) {
+    for (int i = 0; i < 9; i++) {
+        vertices[i] = verts[i];
+    }
+    material = mat;
+}
+
+void Mesh::set(float verts[], Material mat) {
+    for (int i = 0; i < 9; i++) {
+        vertices[i] = verts[i];
+    }
+    material = mat;
+}
+
+vec3 Mesh::getVertex( int ind ) {
+    if (ind >= 0 && ind < 3) {
+        return vec3( vertices[(ind*3)+0], vertices[(ind*3)+1], vertices[(ind*3)+2] );
+    }
+    return vec3(0,0,0);
+}
+
+vec3 Mesh::getNormal() {
+    vec3 edge1 = getVertex(1) - getVertex(0);
+    vec3 edge2 = getVertex(2) - getVertex(0);
+    return glm::normalize( glm::cross(edge1, edge2) );
+}
+
+Material* Mesh::getMaterial() {
+    return &material;
+}
+
+bool Mesh::intersects(Ray ray, float minTime, float maxTime) {
+    float dummy;
+    return intersects(ray, dummy, minTime, maxTime);
+}
+
+bool Mesh::intersects(Ray ray, float &time, float minTime, float maxTime) {
+    vec3 edge_ba = getVertex(0) - getVertex(1);
+    vec3 edge_ca = getVertex(0) - getVertex(2);
+    vec3 aMinusOrigin = getVertex(0) - ray.origin;
+
+    float ei_hf = edge_ca[1] * ray.path[2] - ray.path[1] * edge_ca[2];
+    float gf_di = -(edge_ca[0] * ray.path[2] - ray.path[0] * edge_ca[2]);
+    float dh_eg = edge_ca[0] * ray.path[1] - ray.path[0] * edge_ca[1];
+
+    float M = edge_ba[0] * ei_hf + edge_ba[1] * gf_di + edge_ba[2] * dh_eg;
+
+
+    float beta = (aMinusOrigin[0] * ei_hf + aMinusOrigin[1] * gf_di + aMinusOrigin[2] * dh_eg) / M;
+
+    // Condition for early termination
+    if (beta < 0 || beta > 1) {
+        return false;
+    }
+
+    float ak_jb = edge_ba[0] * aMinusOrigin[1] - aMinusOrigin[0] * edge_ba[1];
+    float jc_al = -(edge_ba[0] * aMinusOrigin[2] - aMinusOrigin[0] * edge_ba[2]);
+    float bl_kc = edge_ba[1] * aMinusOrigin[2] - aMinusOrigin[1] * edge_ba[2];
+
+    float gamma = (ray.path[2] * ak_jb + ray.path[1] * jc_al + ray.path[0] * bl_kc) / M;
+
+    // Condition for early termination
+    if (gamma < 0 || gamma > 1-beta) {
+        return false;
+    }
+
+    // If we have gotten this far, the ray has hit the triangle
+    // Calculate necessary values
+    float t = -(edge_ca[2] * ak_jb + edge_ca[1] * jc_al + edge_ca[0] * bl_kc) / M;
+    if (t > minTime && t < maxTime) {
+        time = t;
+        return true;
+    }
+
+    return false;
+}
+
+bool Mesh::intersects(Ray ray, vec3 &location, vec3 &normal, float &time, float minTime, float maxTime) {
+    bool success = intersects(ray, time, minTime, maxTime);
+
+    if (success) {
+        location = ray.origin + (time * ray.path);
+        normal = getNormal();
+    }
+
+    return success;
+}
+
+
 
