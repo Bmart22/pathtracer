@@ -83,17 +83,17 @@ void Material::randDir(vec3 normal, vec3 &direction, float &probability) {
 Sphere::Sphere() {
     position = vec3(0.0f);
     radius = 0;
-    material.set( vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(0.0f) );
+    material = NULL;
 }
 
 // Constructor for the Sphere class
-Sphere::Sphere(vec3 pos, float rad, Material mat) {
+Sphere::Sphere(vec3 pos, float rad, Material* mat) {
     position = pos;
     radius = rad;
     material = mat;
 }
 
-void Sphere::set(vec3 pos, float rad, Material mat) {
+void Sphere::set(vec3 pos, float rad, Material* mat) {
     position = pos;
     radius = rad;
     material = mat;
@@ -108,7 +108,7 @@ float Sphere::getRadius() {
 }
 
 Material* Sphere::getMaterial() {
-    return &material;
+    return material;
 }
 
 bool Sphere::intersects(Ray ray, float minTime, float maxTime) {
@@ -227,17 +227,18 @@ Mesh::Mesh() {
     for (int i = 0; i < 9; i++) {
         vertices[i] = 0;
     }
+    material = NULL;
 }
 
 // Vertices are stored counterclockwise
-Mesh::Mesh(float verts[], Material mat) {
+Mesh::Mesh(float verts[], Material* mat) {
     for (int i = 0; i < 9; i++) {
         vertices[i] = verts[i];
     }
     material = mat;
 }
 
-void Mesh::set(float verts[], Material mat) {
+void Mesh::set(float verts[], Material* mat) {
     for (int i = 0; i < 9; i++) {
         vertices[i] = verts[i];
     }
@@ -258,7 +259,7 @@ vec3 Mesh::getNormal() {
 }
 
 Material* Mesh::getMaterial() {
-    return &material;
+    return material;
 }
 
 bool Mesh::intersects(Ray ray, float minTime, float maxTime) {

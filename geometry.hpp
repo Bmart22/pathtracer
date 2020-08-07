@@ -59,11 +59,11 @@ public:
 class Sphere {
     vec3 position;
     float radius;
-    Material material;
+    Material* material;
 public:
     Sphere();
-    Sphere(vec3 pos, float rad, Material mat);
-    void set(vec3 pos, float rad, Material mat);
+    Sphere(vec3 pos, float rad, Material* mat);
+    void set(vec3 pos, float rad, Material* mat);
     
     vec3 getPosition();
     float getRadius();
@@ -80,12 +80,12 @@ public:
 class Mesh {
     // Vertices are stored counterclockwise
     float vertices[9];
-    Material material;
+    Material* material;
 
 public:
     Mesh();
-    Mesh(float verts[], Material mat);
-    void set(float verts[], Material mat);
+    Mesh(float verts[], Material* mat);
+    void set(float verts[], Material* mat);
     
     vec3 getVertex( int ind );
     vec3 getNormal();

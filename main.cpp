@@ -174,19 +174,19 @@ int main(int argc, char* argv[]) {
     
     
     // Objects
-//    objects[0].set(vec3(3,0,0), 3, materials[0]);
-//    objects[1].set(vec3(-3,0,0), 2, materials[1]);
+//    objects[0].set(vec3(3,0,0), 3, &materials[0]);
+//    objects[1].set(vec3(-3,0,0), 2, &materials[1]);
 //    numObjects = 2;
     
     // Lights
-    lights[0].set(vec3(5,5,0), 1, materials[2]);
-    lights[1].set(vec3(0,5,0), 1, materials[2]);
+    lights[0].set(vec3(5,5,0), 1, &materials[2]);
+    lights[1].set(vec3(0,5,0), 1, &materials[2]);
     lightsUsed = 2;
     
     float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
-    objects[0].set(verts, materials[0]);
+    objects[0].set(verts, &materials[0]);
     float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
-    objects[1].set(verts2, materials[1]);
+    objects[1].set(verts2, &materials[1]);
     numObjects = 2;
 
     FreeImage_Initialise();
