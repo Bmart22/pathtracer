@@ -10,6 +10,7 @@
 #include <FreeImage.h>
 #include <glm/glm.hpp>
 #include "geometry.hpp"
+#include "material.hpp"
 #include "variables.hpp"
 
 typedef glm::mat3 mat3;

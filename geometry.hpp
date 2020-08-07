@@ -10,7 +10,8 @@
 
 #include <stdio.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
+//#include <glm/gtc/constants.hpp>
+#include "material.hpp"
 #include "variables.hpp"
 
 typedef glm::mat3 mat3;
@@ -29,32 +30,6 @@ struct Camera {
     float focalLength;
 };
 
-//struct Light {
-//    vec3 position;
-//    vec3 intensity;
-//};
-
-class Material {
-    vec3 diffuse;
-    vec3 specular;
-    float phongExp;
-    vec3 reflectance;
-    vec3 emissive;
-    
-public:
-    Material();
-    Material(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
-    void set(vec3 diff, vec3 spec, float p, vec3 ref, vec3 em);
-    
-    bool isLight();
-    vec3 getEmissive();
-    
-    // For a pure, Lambertian (diffuse) surface
-    vec3 BRDF(vec3 normal, vec3 incoming, vec3 outgoing);
-    
-    // Chooses a random incoming direction based on a probability distribution
-    void randDir(vec3 normal, vec3 &direction, float &probability);
-};
 
 class Sphere {
     vec3 position;
