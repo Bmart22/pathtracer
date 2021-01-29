@@ -27,8 +27,8 @@ int lightsUsed;
 
 struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
 
-//Sphere objects[10];
-Mesh objects[10];
+Sphere objects[10];
+//Mesh objects[10];
 int numObjects;
 Material materials[10];
 
@@ -142,10 +142,10 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
             objects[closestObj].getMaterial()->randDir(normal, incoming, prob);
             
             // Calculate the amount of incoming light reflected in the outgoing direction
-            vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, ray.path);
+            vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, -glm::normalize(ray.path));
             
             // Calculate the cos of angle between normal vector and incoming light
-            float cos_theta = glm::dot(-glm::normalize(incoming), normal);
+            float cos_theta = glm::dot(incoming, normal);
             
             // Record new ray to trace
             ray.origin = location;
@@ -167,28 +167,29 @@ int main(int argc, char* argv[]) {
 //    lightsUsed = 2;
     
     // Materials for objects
-    materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
-    materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
+//    materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
+//    materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
     
     // Material for light
-    materials[2].set(vec3(0.0f), vec3(0.0f), 0, vec3(0.0f), vec3(150));
+    materials[0].set("lambert", "beckmann", "cooktorrance", vec3(0), 0.1, vec3(0.0,0.0,0.9), vec3(0.5,0.3,0.6));
+    materials[2].set("lambert", "beckmann", "beckmann", vec3(200), 0.0, vec3(0.0f), vec3(0.0f));
     
     
     // Objects
-//    objects[0].set(vec3(3,0,0), 3, &materials[0]);
-//    objects[1].set(vec3(-3,0,0), 2, &materials[1]);
-//    numObjects = 2;
+    objects[0].set(vec3(3,0,0), 3, &materials[0]);
+    objects[1].set(vec3(-3,0,0), 2, &materials[0]);
+    numObjects = 2;
     
     // Lights
     lights[0].set(vec3(5,5,0), 1, &materials[2]);
     lights[1].set(vec3(0,5,0), 1, &materials[2]);
     lightsUsed = 2;
     
-    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
-    objects[0].set(verts, &materials[0]);
-    float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
-    objects[1].set(verts2, &materials[1]);
-    numObjects = 2;
+//    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
+//    objects[0].set(verts, &materials[0]);
+//    float verts2[9] = {2,3,4, 2,3,-4, 1,0,0};
+//    objects[1].set(verts2, &materials[1]);
+//    numObjects = 2;
 
     FreeImage_Initialise();
 
