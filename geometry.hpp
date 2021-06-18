@@ -12,7 +12,7 @@
 #include <glm/glm.hpp>
 //#include <glm/gtc/constants.hpp>
 #include "material.hpp"
-#include "variables.hpp"
+//#include "variables.hpp"
 
 typedef glm::mat3 mat3;
 typedef glm::mat4 mat4;

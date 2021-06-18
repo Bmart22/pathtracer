@@ -11,7 +11,8 @@
 #include <glm/glm.hpp>
 #include "geometry.hpp"
 #include "material.hpp"
-#include "variables.hpp"
+//#include "variables.hpp"
+#include "parser.hpp"
 
 typedef glm::mat3 mat3;
 typedef glm::mat4 mat4;
@@ -22,10 +23,11 @@ typedef glm::vec4 vec4;
 float screenHeight = 500;
 float screenWidth = 500;
 
-struct Sphere lights[10];
-int lightsUsed;
+Sphere lights[10];
+int numLights;
 
-struct Camera cam = { vec3(0,5,0), vec3(0,-1,0), 1 };
+Camera cam;
+//{ vec3(0,5,0), vec3(0,-1,0), 1 };
 
 Sphere objects[10];
 //Mesh objects[10];
@@ -69,7 +71,7 @@ int findClosestObject(Ray ray, vec3 &location, vec3 &normal, float &time, float 
 int findClosestLight(Ray ray, float &time, float minTime, float maxTime) {
 
     int closestLight = -1;
-    for (int l = 0; l < lightsUsed; l++) {
+    for (int l = 0; l < numLights; l++) {
         // If the current object is intersected and closer than the previous object
         if (lights[l].intersects(ray, time, 0.01, maxTime)) {
             closestLight = l;
@@ -104,7 +106,7 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
         
         // Sample direct illumination
         if (depth == 0) {
-            for (int l = 0; l < lightsUsed; l++) {
+            for (int l = 0; l < numLights; l++) {
                 vec3 incoming;
                 float prob;
                 lights[l].sampleLight(location, incoming, prob);
@@ -164,26 +166,66 @@ int main(int argc, char* argv[]) {
 //    lights[0].intensity = vec3(1,1,1);
 //    lights[1].position = vec3(0,5,0);
 //    lights[1].intensity = vec3(0.5,0.5,0.5);
-//    lightsUsed = 2;
+//    numLights = 2;
     
     // Materials for objects
 //    materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
 //    materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
     
-    // Material for light
-    materials[0].set("lambert", "beckmann", "cooktorrance", vec3(0), 0.1, vec3(0.0,0.0,0.9), vec3(0.5,0.3,0.6));
-    materials[2].set("lambert", "beckmann", "beckmann", vec3(200), 0.0, vec3(0.0f), vec3(0.0f));
+    Parser parse = Parser();
     
+    if (argc>0) {
+        parse.load(argv[1]);
+        
+        FreeImage_Initialise();
+
+        int bitsPerPixel = 24;
+        FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
+        
+        int numSamples = 32;
+        vec3 colVec;
+        RGBQUAD color;
+        for (int i = 0; i < screenWidth; i++) {
+            for (int j = 0; j < screenHeight; j++) {
+                colVec = vec3(0.0f);
+                for (int n = 0; n < numSamples; n++) {
+                    colVec += tracepath( genCameraRay(i,j) );
+                }
+                colVec = colVec / (float)numSamples;
+                
+                // Clamp color values
+                colVec = glm::min(colVec, vec3(255));
+                color.rgbRed = colVec.z;
+                color.rgbGreen = colVec.y;
+                color.rgbBlue = colVec.x;
+                FreeImage_SetPixelColor(bitmap,i,j,&color);
+            }
+        }
+        
+        FreeImage_Save(FIF_PNG, bitmap, "image.png", 0);
+        FreeImage_DeInitialise();
+    }
+    else {
+        std::cout << "No file name provided";
+    }
     
-    // Objects
-    objects[0].set(vec3(3,0,0), 3, &materials[0]);
-    objects[1].set(vec3(-3,0,0), 2, &materials[0]);
-    numObjects = 2;
-    
-    // Lights
-    lights[0].set(vec3(5,5,0), 1, &materials[2]);
-    lights[1].set(vec3(0,5,0), 1, &materials[2]);
-    lightsUsed = 2;
+    // Material for objects
+//    materials[0].set("cooktorrance", "beckmann", "beckmann", vec3(0), 0.1, vec3(0.0,0.0,0.0), vec3(0.9,0.0,0.9));
+//    materials[1].set("cooktorrance", "beckmann", "cooktorrance", vec3(0), 0.1, vec3(0.0,0.0,0.9), vec3(0.0,0.0,0.9));
+//
+//    // Material for lights
+//    materials[2].set("lambert", "beckmann", "beckmann", vec3(200), 0.0, vec3(0.0f), vec3(0.0f));
+//
+//
+//    // Objects
+//    objects[0].set(vec3(3,0,0), 3, &materials[0]);
+//    objects[1].set(vec3(-3,0,0), 2, &materials[1]);
+//    numObjects = 2;
+//
+//    // Lights
+//    lights[0].set(vec3(5,5,0), 1, &materials[2]);
+//    lights[1].set(vec3(0,5,0), 1, &materials[2]);
+//    numLights = 2;
     
 //    float verts[9] = {0,0,4, 4,0,-4, -4,2,-4};
 //    objects[0].set(verts, &materials[0]);
@@ -191,31 +233,5 @@ int main(int argc, char* argv[]) {
 //    objects[1].set(verts2, &materials[1]);
 //    numObjects = 2;
 
-    FreeImage_Initialise();
-
-    int bitsPerPixel = 24;
-    FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
     
-    int numSamples = 32;
-    vec3 colVec;
-    RGBQUAD color;
-    for (int i = 0; i < screenWidth; i++) {
-        for (int j = 0; j < screenHeight; j++) {
-            colVec = vec3(0.0f);
-            for (int n = 0; n < numSamples; n++) {
-                colVec += tracepath( genCameraRay(i,j) );
-            }
-            colVec = colVec / (float)numSamples;
-            
-            // Clamp color values
-            colVec = glm::min(colVec, vec3(255));
-            color.rgbRed = colVec.z;
-            color.rgbGreen = colVec.y;
-            color.rgbBlue = colVec.x;
-            FreeImage_SetPixelColor(bitmap,i,j,&color);
-        }
-    }
-    
-    FreeImage_Save(FIF_PNG, bitmap, "image.png", 0);
-    FreeImage_DeInitialise();
 }

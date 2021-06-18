@@ -70,7 +70,6 @@ vec3 Material::getEmissive() {
     return emissive;
 }
 
-// For a pure, Lambertian (diffuse) surface
 vec3 Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
     if (method == "lambert") {
         return Lambert(normal, incoming, outgoing);
