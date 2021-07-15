@@ -13,6 +13,7 @@
 #include <glm/gtc/constants.hpp>
 #include <string>
 #include <iostream>
+#include <math.h>
 
 typedef glm::mat3 mat3;
 typedef glm::mat4 mat4;
@@ -21,6 +22,13 @@ typedef glm::vec4 vec4;
 typedef std::string string;
 
 class Material {
+    // method is either lambert or cooktorrance
+    // distribution is only beckmann
+    // shadowmask is either beckmaan or cooktorrance
+    // roughness [0,1] is used for Beckmann distribution and masking-shadowing
+    // diffuseColor [0, 255] is the diffuse color for lambert
+    // F0 [0, 1] determines the color of light that is reflected
+    
     string method;
     string distribution;
     string shadowmask;
@@ -28,11 +36,6 @@ class Material {
     float roughness;
     vec3 diffuseColor;
     vec3 F0;
-    
-    //    vec3 diffuse;
-    //    vec3 specular;
-    //    float phongExp;
-    //    vec3 reflectance;
     
 public:
     Material();
@@ -46,6 +49,9 @@ public:
     
     // For a pure, Lambertian (diffuse) surface
     vec3 Lambert(vec3 normal, vec3 incoming, vec3 outgoing);
+    
+    // CookTorrance uses the Beckmann distribution function, but can use either
+    // the Beckmann or CookTorrance masking-shadowing function
     vec3 CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing);
     
     float BeckmannD(vec3 normal, vec3 half_angle);

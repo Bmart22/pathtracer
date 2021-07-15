@@ -87,7 +87,9 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
     
     // Find the closest object
     vec3 location = vec3(0,0,0);
-    vec3 normal = vec3(0,0,0);
+    vec3 normal = vec3(0,0,0);  // Expressed in space coordinates, not local
+    
+    
     float time = std::numeric_limits<float>::infinity();
     int closestObj = findClosestObject(ray, location, normal, time, 0.01, time);
     
@@ -182,7 +184,7 @@ int main(int argc, char* argv[]) {
         int bitsPerPixel = 24;
         FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
         
-        int numSamples = 32;
+        int numSamples = 248;
         vec3 colVec;
         RGBQUAD color;
         for (int i = 0; i < screenWidth; i++) {
