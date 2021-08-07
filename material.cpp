@@ -17,6 +17,7 @@ Material::Material() {
     roughness = 0.5;
     diffuseColor = vec3(0.5f);
     F0 = vec3(0.5f);  // range [0,1]
+    material = "conductor";
 
 }
 
@@ -29,6 +30,7 @@ Material::Material(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 
     roughness = r;
     diffuseColor = dc;
     F0 = f0;
+    material = "conductor";
     
 }
 
@@ -41,6 +43,7 @@ void Material::set(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 
     roughness = r;
     diffuseColor = dc;
     F0 = f0;
+    material = "conductor";
 
 }
 
@@ -53,15 +56,70 @@ vec3 Material::getEmissive() {
     return emissive;
 }
 
+mat3 Material::genCoorFrame(vec3 z_axis) {
+//    vec3 basis[3];
+//    basis[2] = glm::normalize(z_axis);
+//
+//    // Develop an orthonormal basis from the provided vector
+//
+//    // Create nonparallel vector t
+//    float a = std::numeric_limits<float>::infinity();
+//    int ind = 0;
+//    for (int i = 0; i<3; i++) {
+//        if ( abs( basis[2][i] ) < a ) {
+//            a = basis[2][i];
+//            ind = i;
+//        }
+//    }
+//    vec3 t = basis[2];
+//    t[ind] = 1;
+//
+//    // Cross product t with basis[2] to get perpendicular axis x
+//    basis[0] = glm::normalize( glm::cross(t, basis[2]) );
+//
+//    // Create the final axis y
+//    basis[1] = glm::cross(basis[2], basis[0]);
+//
+//    return mat3(basis[0], basis[1], basis[2]);
+    
+    
+
+    
+    vec3 poss[3];
+    poss[0] = vec3(-z_axis[1], z_axis[0], 0.0f);
+    poss[1] = vec3(z_axis[2], 0.0f, -z_axis[0]);
+    poss[2] = vec3(0.0f, -z_axis[2], z_axis[1]);
+    
+    int ind = 0;
+    while (poss[ind] == vec3(0.0f,0.0f,0.0f)) {
+        ind++;
+    }
+    
+    z_axis = glm::normalize(z_axis);
+    vec3 x_axis = glm::normalize(poss[ind]);
+    vec3 y_axis = glm::cross(z_axis, x_axis);
+    
+    return mat3(x_axis, y_axis, z_axis);
+}
+
+
+// Incoming: points toward previous object bounce
+// Outgoing: points toward next object bounce
 vec3 Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
+    mat3 basis = glm::transpose(genCoorFrame(normal));
+//    std::cout << (basis * normal)[1] << " ";
+    incoming = basis * incoming;
+    outgoing = basis * outgoing;
+    
+        
     if (method == "lambert") {
-        return Lambert(normal, incoming, outgoing);
+        return Lambert(vec3(0.0,0.0,1.0), incoming, outgoing);
     }
     if (method == "cooktorrance") {
-        return CookTorrance(normal, incoming, outgoing);
+        return CookTorrance(vec3(0.0,0.0,1.0), incoming, outgoing);
     }
     if (method == "smith") {
-        return Smith(normal, incoming, outgoing);
+        return Smith(incoming, outgoing);
     }
     
     return Lambert(normal, incoming, outgoing);
@@ -69,6 +127,8 @@ vec3 Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
 
 // For a pure, Lambertian (diffuse) surface
 vec3 Material::Lambert(vec3 normal, vec3 incoming, vec3 outgoing) {
+//    return vec3(outgoing[2]);
+//    return vec3(glm::dot(normal,outgoing));
     return diffuseColor/glm::pi<float>();
 }
 
@@ -78,8 +138,8 @@ vec3 Material::CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing) {
     vec3 half_angle = glm::normalize(incoming + outgoing);
     
     vec3 numerator = vec3(0.0f);
-    if (distribution == "beckmann") {
-        float dist = BeckmannD(normal, half_angle);
+    if (distribution == "beckmann" || distribution == "ggx") {
+        float dist = Distribution(half_angle);
         
         float atten = MaskingShadowing(normal,incoming,outgoing);
         
@@ -90,49 +150,27 @@ vec3 Material::CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing) {
         numerator = vec3(0.5f);
     }
     
-    float denominator = 4 * glm::dot(normal,incoming) * glm::dot(normal,outgoing);
-    return numerator / denominator;
-}
-
-// Beckmann Distribution Function, based on gaussian
-float Material::BeckmannD(vec3 normal, vec3 half_angle) {
-    float a = roughness;
-
-    float ndotm = glm::dot(normal,half_angle);
-    
-    float numerator = glm::exp( (ndotm*ndotm - 1) / (a * a * ndotm * ndotm) );
-    
-    float denominator = glm::pi<float>() * a * a * glm::pow(ndotm,4);
-    
+    float denominator = 4 * incoming[2] * outgoing[2];
     return numerator / denominator;
 }
 
 float Material::MaskingShadowing(vec3 normal, vec3 incoming, vec3 outgoing) {
-    if (shadowmask == "beckmann") {
-        return BeckmannG(normal, incoming, outgoing);
+    if (shadowmask == "beckmann" || shadowmask == "ggx") {
+        return SmithGUncorrelated(incoming, outgoing);
     }
     if (shadowmask == "cooktorrance") {
         return CookTorranceG(normal, incoming, outgoing);
     }
-    return BeckmannG(normal, incoming, outgoing);
+    return SmithGUncorrelated(incoming, outgoing);
 }
 
-float Material::BeckmannG(vec3 normal, vec3 incoming, vec3 outgoing) {
-    return BeckmannGsub(normal, incoming) * BeckmannGsub(normal, outgoing);
+float Material::SmithGUncorrelated(vec3 incoming, vec3 outgoing) {
+    return G1(incoming) * G1(outgoing);
 }
 
 // Beckmann Shadowing-Masking Function
-float Material::BeckmannGsub(vec3 normal, vec3 vec) {
-    float a = roughness;
-    float ndotv = glm::dot(normal, vec);
-    float c = ndotv / (a * glm::sqrt(1 - ndotv*ndotv ));
-    
-    if (c >= 1.6) {
-        return 1.0f;
-    } else {
-        return (3.535*c + 2.181*c*c)/(1 + 2.276*c + 2.577*c*c);
-    }
-    
+float Material::G1(vec3 vec) {
+    return 1 / (1 + LambdaG(vec));
 }
 
 float Material::CookTorranceG(vec3 normal, vec3 incoming, vec3 outgoing) {
@@ -187,128 +225,267 @@ void Material::LambertRandDir(vec3 normal, vec3 &direction, float &probability) 
 
 
 // Calculate Distribution of Normals
-float Distribution(vec3 normal, vec3 half_angle) {
+float Material::Distribution(vec3 half_angle) {
     if (distribution == "beckmann") {
-        return BeckmannD(normal, half_angle);
+        return BeckmannD(half_angle);
     }
+    if (distribution == "ggx") {
+        return GGXD(half_angle);
+    }
+    
+    return 0;
 }
+
+// Beckmann Distribution Function, based on gaussian
+float Material::BeckmannD(vec3 half_angle) {
+    float a = roughness;
+
+//    float ndotm = glm::dot(normal,half_angle);
+    float ndotm = half_angle[2];
+    
+    float numerator = glm::exp( (ndotm*ndotm - 1) / (a * a * ndotm * ndotm) );
+    
+    float denominator = glm::pi<float>() * a * a * glm::pow(ndotm,4);
+    
+    return numerator / denominator;
+}
+
+float Material::GGXD(vec3 half_angle) {
+    float a = roughness;
+
+//    float ndotm = glm::dot(normal,half_angle);
+    float ndotm = half_angle[2];
+    
+    float part1 = glm::pi<float>() * a * a * glm::pow(ndotm,4);
+    
+    float part2 = 1 + (1 - ndotm*ndotm) / (a * a * ndotm * ndotm);
+    
+    return 1 / (part1 * part2);
+}
+
 
 
 // Simulate random walk
-vec3 Material::Smith(vec3 normal, vec3 incoming, vec3 outgoing) {
+vec3 Material::Smith(vec3 incoming, vec3 outgoing) {
     float inf = std::numeric_limits<float>::infinity();
-    float height = inf;
-    float energy = 1;
+    
+    float height = InvCumulativeDist(0.9f);
+    
+    vec3 energy = vec3(1.0f);
     vec3 direction = -incoming;
-    float weight;
+    vec3 weight;
     int r = 0;
     
-    float sum = 0;
+    float theta;
+    float ax = 1;
+    float ay = 1;
+    vec3 microNormal;
+    
+    vec3 sum = vec3(0.0f);
     
     while (true) {
-        height = SampleHeight(normal, direction, height);
+        
+        
+        height = SampleHeight(direction, height);
+
+        
+        
         if (height == inf) {
             break;
         }
-        direction, weight = SampleDir();
+        
+//        theta = vec2angle(normal, direction);
+        
+        microNormal = SampleNorm(-direction, ax, ay);
+        SamplePhase(microNormal, -direction, direction, weight);
         energy = energy * weight;
         
-        sum = sum + energy * Phase(normal, direction, outgoing) * SmithG(normal, outgoing, height);
+        
+        
+        // Direction points opposite incoming, but Phase expects incoming
+        
+        sum += energy * Phase(-direction, outgoing) * SmithG(outgoing, height);
         
         r++;
     }
+    
+//    std::cout << sum[2] << " ";
+    
     return sum;
 }
 
-vec3, float Material::SampleDir(vec3 normal, vec3 direction, float height) {
-    if ("conductor") {
-        
+void Material::SamplePhase(vec3 microNormal, vec3 incoming, vec3& outgoing, vec3& weight) {
+    
+    vec3 sf = SchlickFresnel(incoming, microNormal);
+    
+    if (material == "conductor") {
+        // reflect
+        outgoing = -incoming + 2 * glm::dot(microNormal,incoming) * microNormal;
+        weight = sf;
     }
+    else if (material == "dielectric") {
+        float u = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        
+        for (int i = 0; i < 3; i++) {
+            if (u < sf[i]) {
+                // reflect
+                outgoing = -incoming + 2 * glm::dot(microNormal,incoming) * microNormal;
+            } else {
+                // transmit
+                
+            }
+        }
+        weight = vec3(1.0f);
+    }
+    
+    return;
 }
 
-vec3 Material::SampleNorm() {
-    if ("conductor") {
-        
-    }
-}
 
-float Material::Phase(vec3 normal, vec3 incoming, vec3 outgoing) {
+vec3 Material::Phase(vec3 incoming, vec3 outgoing) {
     vec3 half_angle = glm::normalize(incoming + outgoing);
-    vec3 microNormal = SampleNorm();
+    
+//    float cos_theta = glm::dot(normal, glm::normalize(incoming));
+//    float theta = glm::acos(cos_theta);
+    float cos_theta = incoming[2];
+    float theta = acos(cos_theta);
     
     // Calculate modified distribution of normals
-    float D_w = glm::dot(incoming, microNormal) * Distribution(microNormal, half_angle,       ) /
-    ( glm::dot(normal, glm::normalize(incoming)) * (1+LambdaG(normal, incoming)) );
+    float D_w = glm::dot(incoming, half_angle) * Distribution(half_angle) / ( cos_theta * (1+LambdaG(incoming)) );
     
     
     // Proceed
-    float reflectComp = SchlickFresnel(incoming, half_angle) * D_w / ( 4 * glm::abs(glm::dot(incoming, half_angle)) );
+    vec3 reflectComp = SchlickFresnel(incoming, half_angle) * D_w / ( 4 * glm::abs(glm::dot(incoming, half_angle)) );
     
-    if ("conductor") {
+//    std::cout << material << " ";
+    
+    if (material == "conductor") {
+
         return reflectComp;
     }
+    
+    return vec3(0.0f);
 }
 
-float Material::SampleHeight(vec3 normal, vec3 direction, float height) {
+float Material::SampleHeight(vec3 direction, float height) {
     float u = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
     
-    if (u >= 1 - SmithG(normal, direction, height) ) {
+    float sg = SmithG(direction, height);
+    
+    
+    if ( u > 1 - sg ) {
         return std::numeric_limits<float>::infinity();
     } else {
-        return
+        return InvCumulativeDist( CumulativeDist(height) / glm::pow(1-u, 1/LambdaG(direction)) );
     }
 }
 
-float Material::SmithG(vec3 normal, vec3 incoming, float height) {
-    return glm::pow( CumulativeDist(height), LambdaG(normal, incoming) );
-}
-
-float CumulativeDist() {
-    if (distribution == "beckmann") {
-        
-    }
-    else if (distribution == "trowbridge") {
-        
-    }
+float Material::SmithG(vec3 incoming, float height) {
+    float cd = CumulativeDist(height);
+    float lg = LambdaG(incoming);
     
-    return
+    return powf( cd, lg );
 }
 
-float Material::LambdaG(vec3 normal, vec3 w) {
-    float cos = glm::pow(glm::dot(normal, w), 2);
+// Cumulative Distribution of Heights (gaussian)
+float Material::CumulativeDist(float height) {
+    const float value = std::min(1.0f, std::max(0.0f, 0.5f*(height+1.0f)));
+    return value;
+    
+//    float mean = 0;
+//    float dev = 1;
+//    return 0.5 * (1 + erf( (height - mean) / (dev*glm::sqrt(2)) ));
+}
+
+// Inverse Cumulative Distribution of Heights (gaussian)
+// Also known as the Quantile function
+float Material::InvCumulativeDist(float num) {
+    const float h = std::max(-1.0f, std::min(1.0f, 2.0f*num-1.0f));
+    return h;
+    
+//    float mean = 0;
+//    float dev = 1;
+//    return mean + dev * glm::sqrt(2) * erfinv(2*height-1);
+}
+
+float Material::LambdaG(vec3 w) {
+    float cos2 = w[2] * w[2];
+//    glm::pow(glm::dot(normal, w), 2);
     float tan2 = (1-cos2)/cos2;
+    float a = 1 / (roughness * glm::sqrt(tan2));
+    float pi = glm::pi<float>();
     
     if (distribution == "beckmann") {
-        float a = 1 / (roughness * glm::sqrt(tan2));
-        return 0.5 * ( erf(a) - 1 + glm::exp(-glm::pow(a,2)) / (a*glm::sqrt(glm::pi<float>())) );
+        // Walter et al 2007 approximation
+        if (a < 1.6) {
+            return (1 - 1.259*a + 0.396*a*a) / (3.535*a + 2.181*a*a);
+        } else {
+            return 0;
+        }
+        
+        // Exact implementation
+        // return 0.5 * ( erf(a) - 1 + glm::exp(-a*a)/(a*glm::sqrt(pi)) );
     }
-    else if (distribution == "trowbridge") {
-        return (-1 + glm::sqrt(1 + glm::pow(roughness,2) * tan2)) / 2;
+    else if (distribution == "ggx") {
+        return (-1 + glm::sqrt( 1 + 1/(a*a) )) / 2;
     }
     
-    return
+    return 0;
 }
 
 
+vec3 Material::SampleNorm(vec3 direction, float ax, float ay) {
+    float slope_x;
+    float slope_y;
+    
+    float theta = acos(direction[2]);
+    float phi = atan2(direction[1], direction[0]);
+    
+    
+    if (distribution == "beckmann") {
+        SampleBeckmann(theta, slope_x, slope_y);
+    }
+    else if (distribution == "ggx") {
+        SampleGGX(theta, slope_x, slope_y);
+    }
+    
+    
+    // rotate
+    float tmp = cos(phi)*slope_x - sin(phi)*slope_y;
+    slope_y = sin(phi)*slope_x + cos(phi)*slope_y;
+    slope_x = tmp;
+    
+    slope_x = ax * slope_x;
+    slope_y = ay * slope_y;
+    
+    float norm = glm::sqrt(slope_x*slope_x + slope_y*slope_y + 1);
+    vec3 normal = vec3(-slope_x, -slope_y, 1) / norm;
+    
+    return normal;
+}
 
 
-vec3 Material::SampleBeckmann(vec3 incoming, float& slope_x, float& slope_y) {
+void Material::SampleBeckmann(float theta_i, float& slope_x, float& slope_y) {
+    // Random numbers
+    float U1 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    float U2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    
     // special case (normal incidence)
     if (theta_i < 0.0001) {
-        float r = sqrt(-log(U1));
+        float r = glm::sqrt(-logf(U1));
         float phi = 6.28318530718 * U2;
-        slope_x = r * cos(phi);
-        slope_y = r * sin(phi);
+        slope_x = r * glm::cos(phi);
+        slope_y = r * glm::sin(phi);
         return;
     }
     
     // precomputations
-    float sin_theta_i = sin(theta_i);
-    float cos_theta_i = cos(theta_i);
+    float sin_theta_i = glm::sin(theta_i);
+    float cos_theta_i = glm::cos(theta_i);
     float tan_theta_i = sin_theta_i/cos_theta_i;
     float a = 1 / tan_theta_i;
     float erf_a = erf(a);
-    float exp_a2 = exp(-a*a);
+    float exp_a2 = glm::exp(-a*a);
     float SQRT_PI_INV = 0.56418958354;
     float Lambda = 0.5*(erf_a-1) + 0.5*SQRT_PI_INV*exp_a2/a;
     float G1 = 1 / (1 + Lambda);
@@ -325,7 +502,7 @@ vec3 Material::SampleBeckmann(vec3 incoming, float& slope_x, float& slope_y) {
         
         if (U1 < p) {
             U1 = U1 / p;
-            slope_x = -sqrt(-log(U1*exp_a2));
+            slope_x = -sqrt(-logf(U1*exp_a2));
         } else {
             U1 = (U1-p) / (1-p);
             slope_x = erfinv(U1 - 1.0 - U1*erf_a); // find the inverse erf function
@@ -351,29 +528,32 @@ vec3 Material::SampleBeckmann(vec3 incoming, float& slope_x, float& slope_y) {
     
 }
 
-vec3 Material::SampleGGX(vec3 incoming, float& slope_x, float& slope_y) {
-    
+void Material::SampleGGX(float theta_i, float& slope_x, float& slope_y) {
+    // Random numbers
+    float U1 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    float U2 = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
 
     // special case (normal incidence)
     if(theta_i < 0.0001) {
-        float r = sqrt(U1/(1-U1));
+        float r = glm::sqrt(U1/(1-U1));
         float phi = 6.28318530718 * U2;
-        slope_x = r * cos(phi);
-        slope_y = r * sin(phi);
+        slope_x = r * glm::cos(phi);
+        slope_y = r * glm::sin(phi);
         return;
     }
     
 
     // precomputations
-    float tan_theta_i = tan(theta_i);
+    float tan_theta_i = glm::tan(theta_i);
     float a = 1 / (tan_theta_i);
-    float G1 = 2 / (1 + sqrt(1.0+1.0/(a*a)));
+    float G1 = 2 / (1 + glm::sqrt(1.0+1.0/(a*a)));
+
     
     // sample slope_x
     float A = 2.0*U1/G1 - 1.0;
     float tmp = 1.0 / (A*A-1.0);
     float B = tan_theta_i;
-    float D = sqrt(B*B*tmp*tmp - (A*A-B*B)*tmp);
+    float D = glm::sqrt(B*B*tmp*tmp - (A*A-B*B)*tmp);
     float slope_x_1 = B*tmp - D;
     float slope_x_2 = B*tmp + D;
     slope_x = (A < 0 || slope_x_2 > 1.0/tan_theta_i) ? slope_x_1 : slope_x_2;
@@ -389,5 +569,75 @@ vec3 Material::SampleGGX(vec3 incoming, float& slope_x, float& slope_y) {
     }
     
     float z = (U2*(U2*(U2*0.27385-0.73369)+0.46341)) / (U2*(U2*(U2*0.093073+0.309420)-1.000000)+0.597999);
-    slope_y = S * z * sqrt(1.0+slope_x*slope_x);
+    slope_y = S * z * glm::sqrt(1.0+slope_x*slope_x);
+}
+
+
+// Implementation modeled on Giles 2012
+float Material::erfinv(float x) {
+    float w, p;
+    w = - logf((1.0f-x)*(1.0f+x));
+    if ( w < 5.000000f ) {
+    w = w - 2.500000f;
+    p = 2.81022636e-08f;
+    p = 3.43273939e-07f + p*w;
+    p = -3.5233877e-06f + p*w;
+    p = -4.39150654e-06f + p*w;
+    p = 0.00021858087f + p*w;
+    p = -0.00125372503f + p*w;
+    p = -0.00417768164f + p*w;
+    p = 0.246640727f + p*w;
+    p = 1.50140941f + p*w;
+    }
+    else {
+    w = sqrtf(w) - 3.000000f;
+    p = -0.000200214257f;
+    p = 0.000100950558f + p*w;
+    p = 0.00134934322f + p*w;
+    p = -0.00367342844f + p*w;
+    p = 0.00573950773f + p*w;
+    p = -0.0076224613f + p*w;
+    p = 0.00943887047f + p*w;
+    p = 1.00167406f + p*w;
+    p = 2.83297682f + p*w;
+    }
+    return p*x;
+    
+//    float w;
+//    float p;
+//
+//    w = -logf((1-x)*(1+x));
+//
+//    if (w < 5) {
+//        w = w - 2.5;
+//        p = 2.81022636e-08f;
+//        p = 3.43273939e-07f + p*w;
+//        p = -3.5233877e-06f + p*w;
+//        p = -4.39150654e-06f + p*w;
+//        p = 0.00021858087f + p*w;
+//        p = -0.00125372503f + p*w;
+//        p = -0.00417768164f + p*w;
+//        p = 0.246640727f + p*w;
+//        p = 1.50140941f + p*w;
+//    } else {
+//        w = glm::sqrt(w) - 3;
+//        p = -0.000200214257f;
+//        p = 0.000100950558f + p*w;
+//        p = 0.00134934322f + p*w;
+//        p = -0.00367342844f + p*w;
+//        p = 0.00573950773f + p*w;
+//        p = -0.0076224613f + p*w;
+//        p = 0.00943887047f + p*w;
+//        p = 1.00167406f + p*w;
+//        p = 2.83297682f + p*w;
+//    }
+//
+//    return p*x;
+}
+
+float Material::vec2angle(vec3 normal, vec3 w) {
+    
+    // Normalize?
+
+    return acos( glm::dot(normal, w) );
 }

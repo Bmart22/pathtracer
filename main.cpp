@@ -108,25 +108,34 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
         
         // Sample direct illumination
         if (depth == 0) {
-            for (int l = 0; l < numLights; l++) {
+            for (int l = 0; l < numLights; l++) { // for every light
+                
+                // sample a point on the spherical light
                 vec3 incoming;
                 float prob;
                 lights[l].sampleLight(location, incoming, prob);
                 
+                // calculate distance to light source (shadowBound)
                 Ray directRay = {location, incoming};
                 float shadowBound;
                 lights[l].intersects(directRay, shadowBound, 0.01, std::numeric_limits<float>::infinity());
                 
+                // Check if the light is obstructed
                 bool inShadow = false;
                 int obj = 0;
                 while (!inShadow && obj < numObjects) {
-                    // Check if the light is in shadow
                     inShadow = objects[obj].intersects(directRay, 0.01, shadowBound);
                     obj++;
                 }
                 
+                // If the light is not shadowed, calculate direct lighting contribution
                 if (!inShadow) {
-                    color += lights[l].getMaterial()->getEmissive() / prob;
+                    float cos_theta = glm::dot(incoming, normal);
+                    
+                    vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, -glm::normalize(ray.path));
+
+                    color += brdf * lights[l].getMaterial()->getEmissive() * cos_theta / prob;
+//                    color += brdf;
                 }
             }
             
@@ -151,6 +160,8 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
             // Calculate the cos of angle between normal vector and incoming light
             float cos_theta = glm::dot(incoming, normal);
             
+            // cos_theta is folded into the brdf calculation
+            
             // Record new ray to trace
             ray.origin = location;
             ray.path = incoming;
@@ -174,17 +185,40 @@ int main(int argc, char* argv[]) {
 //    materials[0].set(vec3(100,100,100), vec3(100,100,100), 100, vec3(0.6f), vec3(0.0f));
 //    materials[1].set(vec3(200,0,0), vec3(100,100,100), 100, vec3(0.0f), vec3(0.0f));
     
-    Parser parse = Parser();
     
+//    Material mat = Material("cooktorrance", "beckmann", "beckmann", vec3(0,0,0), 0.2, vec3(0.0,0.0,0.0), vec3(0.9,0.9,0.9));
+//
+//    vec3 norm = vec3(0.567,0.7,0.34);
+//    mat3 basis = glm::transpose( mat.genCoorFrame(norm) );
+//    vec3 w = basis * vec3(0.0,0.0,1.0);
+////    std::cout << glm::dot(basis[0],basis[1]) << " ";
+////    std::cout << glm::dot(basis[0],basis[2]) << " ";
+////    std::cout << glm::dot(basis[1],basis[2]);
+////    std::cout << glm::length(basis[0]) << " ";
+////    std::cout << glm::length(basis[1]) << " ";
+////    std::cout << glm::length(basis[2]) << " ";
+////    std::cout << basis[2][0] << " ";
+////    std::cout << basis[2][1] << " ";
+////    std::cout << basis[2][2];
+//
+//    norm = glm::normalize(norm);
+////    std::cout << (norm)[2] << " ";
+//    std::cout << (w)[2] << " ";
+//    std::cout << (basis * norm)[2];
+////    std::cout << glm::dot(w, glm::normalize(vec3(0.0,0.0,1.0)));
+////    std::cout << w[0] << " " << w[1] << " " << w[2];
+    
+    Parser parse = Parser();
+
     if (argc>0) {
         parse.load(argv[1]);
-        
+
         FreeImage_Initialise();
 
         int bitsPerPixel = 24;
         FIBITMAP* bitmap = FreeImage_Allocate(screenWidth, screenHeight, bitsPerPixel);
-        
-        int numSamples = 248;
+
+        int numSamples = 20;
         vec3 colVec;
         RGBQUAD color;
         for (int i = 0; i < screenWidth; i++) {
@@ -194,7 +228,7 @@ int main(int argc, char* argv[]) {
                     colVec += tracepath( genCameraRay(i,j) );
                 }
                 colVec = colVec / (float)numSamples;
-                
+
                 // Clamp color values
                 colVec = glm::min(colVec, vec3(255));
                 color.rgbRed = colVec.z;
@@ -203,13 +237,19 @@ int main(int argc, char* argv[]) {
                 FreeImage_SetPixelColor(bitmap,i,j,&color);
             }
         }
-        
+
         FreeImage_Save(FIF_PNG, bitmap, "image.png", 0);
         FreeImage_DeInitialise();
     }
     else {
         std::cout << "No file name provided";
     }
+    
+    
+    
+    
+    
+    
     
     // Material for objects
 //    materials[0].set("cooktorrance", "beckmann", "beckmann", vec3(0), 0.1, vec3(0.0,0.0,0.0), vec3(0.9,0.0,0.9));
