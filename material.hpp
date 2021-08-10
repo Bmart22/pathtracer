@@ -40,8 +40,8 @@ class Material {
     
 public:
     Material();
-    Material(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 f0);
-    void set(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 f0);
+    Material(string m, string d, string t, vec3 e, float r, vec3 dc, vec3 f0);
+    void set(string m, string d, string t, vec3 e, float r, vec3 dc, vec3 f0);
     
     bool isLight();
     vec3 getEmissive();
@@ -57,19 +57,17 @@ public:
     vec3 CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing);
     
     
-    
-    float MaskingShadowing(vec3 normal, vec3 incoming, vec3 outgoing);
-    float SmithGUncorrelated(vec3 incoming, vec3 outgoing);
+    // Uncorrelated SMith Masking Function
+    float MaskingShadowing(vec3 incoming, vec3 outgoing);
     float G1(vec3 vec);
-    float CookTorranceG(vec3 normal, vec3 incoming, vec3 outgoing);
     
     vec3 SchlickFresnel(vec3 outgoing, vec3 half_angle);
     
     // Chooses a random incoming direction based on a probability distribution
-    void randDir(vec3 normal, vec3 &direction, float &probability);
+    void sampleDir(vec3 normal, vec3 incoming, vec3 &direction, vec3 &probability);
     
-    void LambertRandDir(vec3 normal, vec3 &direction, float &probability);
-    
+    void LambertSampleDir(vec3 normal, vec3 &direction, vec3 &probability);
+    void SmithSampleDir(vec3 normal, vec3 incoming, vec3 &direction, vec3 &probability);
     
     float Distribution(vec3 half_angle);
     float BeckmannD(vec3 half_angle);

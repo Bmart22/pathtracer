@@ -83,11 +83,11 @@ int findClosestLight(Ray ray, float &time, float minTime, float maxTime) {
 // Function is called once per view ray
 vec3 tracepath( Ray ray, int depth = 0 ) {
     
-    vec3 color = vec3(0,0,0);
+    vec3 color = vec3(0.0f);
     
     // Find the closest object
-    vec3 location = vec3(0,0,0);
-    vec3 normal = vec3(0,0,0);  // Expressed in space coordinates, not local
+    vec3 location = vec3(0.0f);
+    vec3 normal = vec3(0.0f);  // Expressed in space coordinates, not local
     
     
     float time = std::numeric_limits<float>::infinity();
@@ -98,17 +98,22 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
     int closestLight = findClosestLight(ray, lightTime, 0.01, time);
     
     // Check if a light has been hit and the light is closer than the nearest object
-    if (closestLight != -1 && lightTime < time) {
+    if (closestLight != -1 && lightTime < time)
+    {
         // Return the emission of the light
-        return lights[closestLight].getMaterial()->getEmissive();
+        return vec3(0.0f);
+//        return lights[closestLight].getMaterial()->getEmissive();
     }
     
     // Otherwise, if an object has been hit
-    if (closestObj != -1) {
+    if (closestObj != -1)
+    {
         
         // Sample direct illumination
-        if (depth == 0) {
-            for (int l = 0; l < numLights; l++) { // for every light
+//        if (depth == 0)
+//        {
+            for (int l = 0; l < numLights; l++)
+            { // for every light
                 
                 // sample a point on the spherical light
                 vec3 incoming;
@@ -123,23 +128,24 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
                 // Check if the light is obstructed
                 bool inShadow = false;
                 int obj = 0;
-                while (!inShadow && obj < numObjects) {
+                while (!inShadow && obj < numObjects)
+                {
                     inShadow = objects[obj].intersects(directRay, 0.01, shadowBound);
                     obj++;
                 }
                 
                 // If the light is not shadowed, calculate direct lighting contribution
-                if (!inShadow) {
+                if (!inShadow)
+                {
                     float cos_theta = glm::dot(incoming, normal);
                     
                     vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, -glm::normalize(ray.path));
 
                     color += brdf * lights[l].getMaterial()->getEmissive() * cos_theta / prob;
-//                    color += brdf;
                 }
             }
             
-        }
+//        }
         
         // Sample Indirect Lighting
         
@@ -147,20 +153,19 @@ vec3 tracepath( Ray ray, int depth = 0 ) {
         float rouletteCutoff = 0.2;
         float roulette = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
         
-        if (roulette > rouletteCutoff) {
+        if (roulette > rouletteCutoff)
+        {
         
             // Generate new random direction and the probability of choosing that direction
             vec3 incoming;
-            float prob;
-            objects[closestObj].getMaterial()->randDir(normal, incoming, prob);
+            vec3 prob;
+            objects[closestObj].getMaterial()->sampleDir(normal, -glm::normalize(ray.path), incoming, prob);
             
             // Calculate the amount of incoming light reflected in the outgoing direction
             vec3 brdf = objects[closestObj].getMaterial()->BRDF(normal, incoming, -glm::normalize(ray.path));
             
             // Calculate the cos of angle between normal vector and incoming light
             float cos_theta = glm::dot(incoming, normal);
-            
-            // cos_theta is folded into the brdf calculation
             
             // Record new ray to trace
             ray.origin = location;

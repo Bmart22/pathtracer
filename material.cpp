@@ -12,39 +12,31 @@
 Material::Material() {
     method = "cooktorrance";
     distribution = "beckmann";
-    shadowmask = "beckmann";
+    material = "conductor";
     emissive = vec3(0.0f);
     roughness = 0.5;
     diffuseColor = vec3(0.5f);
     F0 = vec3(0.5f);  // range [0,1]
-    material = "conductor";
-
 }
 
-Material::Material(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 f0) {
-    
+Material::Material(string m, string d, string t, vec3 e, float r, vec3 dc, vec3 f0) {
     method = m;
     distribution = d;
-    shadowmask = s;
+    material = t;
     emissive = e;
     roughness = r;
     diffuseColor = dc;
     F0 = f0;
-    material = "conductor";
-    
 }
 
-void Material::set(string m, string d, string s, vec3 e, float r, vec3 dc, vec3 f0) {
-    
+void Material::set(string m, string d, string t, vec3 e, float r, vec3 dc, vec3 f0) {
     method = m;
     distribution = d;
-    shadowmask = s;
+    material = t;
     emissive = e;
     roughness = r;
     diffuseColor = dc;
     F0 = f0;
-    material = "conductor";
-
 }
 
 bool Material::isLight() {
@@ -107,7 +99,6 @@ mat3 Material::genCoorFrame(vec3 z_axis) {
 // Outgoing: points toward next object bounce
 vec3 Material::BRDF(vec3 normal, vec3 incoming, vec3 outgoing) {
     mat3 basis = glm::transpose(genCoorFrame(normal));
-//    std::cout << (basis * normal)[1] << " ";
     incoming = basis * incoming;
     outgoing = basis * outgoing;
     
@@ -141,7 +132,7 @@ vec3 Material::CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing) {
     if (distribution == "beckmann" || distribution == "ggx") {
         float dist = Distribution(half_angle);
         
-        float atten = MaskingShadowing(normal,incoming,outgoing);
+        float atten = MaskingShadowing(incoming,outgoing);
         
         vec3 fres = SchlickFresnel(outgoing, half_angle);
         
@@ -154,34 +145,13 @@ vec3 Material::CookTorrance(vec3 normal, vec3 incoming, vec3 outgoing) {
     return numerator / denominator;
 }
 
-float Material::MaskingShadowing(vec3 normal, vec3 incoming, vec3 outgoing) {
-    if (shadowmask == "beckmann" || shadowmask == "ggx") {
-        return SmithGUncorrelated(incoming, outgoing);
-    }
-    if (shadowmask == "cooktorrance") {
-        return CookTorranceG(normal, incoming, outgoing);
-    }
-    return SmithGUncorrelated(incoming, outgoing);
-}
-
-float Material::SmithGUncorrelated(vec3 incoming, vec3 outgoing) {
+float Material::MaskingShadowing(vec3 incoming, vec3 outgoing) {
     return G1(incoming) * G1(outgoing);
 }
 
 // Beckmann Shadowing-Masking Function
 float Material::G1(vec3 vec) {
     return 1 / (1 + LambdaG(vec));
-}
-
-float Material::CookTorranceG(vec3 normal, vec3 incoming, vec3 outgoing) {
-    vec3 half_angle = glm::normalize(incoming + outgoing);
-    float ndoth = glm::dot(normal,half_angle);
-    float ndoti = glm::dot(normal,incoming);
-    float ndoto = glm::dot(normal,outgoing);
-    
-    float m = glm::min(1.0f, 2*ndoth*ndoto/ndoto);
-    return glm::min(m, 2*ndoth*ndoti/ndoto);
-    
 }
 
 vec3 Material::SchlickFresnel(vec3 outgoing, vec3 half_angle) {
@@ -191,15 +161,23 @@ vec3 Material::SchlickFresnel(vec3 outgoing, vec3 half_angle) {
 
 
 
-void Material::randDir(vec3 normal, vec3 &direction, float &probability) {
+void Material::sampleDir(vec3 normal, vec3 incoming, vec3 &direction, vec3 &probability) {
     if (method == "lambert") {
-        return LambertRandDir(normal, direction, probability);
+        LambertSampleDir(normal, direction, probability);
     }
-    return LambertRandDir(normal, direction, probability);
+    if (method == "smith") {
+        mat3 basis = glm::transpose(genCoorFrame(normal));
+        incoming = basis * incoming;
+        
+        SmithSampleDir(normal, incoming, direction, probability);
+        
+        direction = glm::transpose(basis) * direction;
+    }
+    LambertSampleDir(normal, direction, probability);
 }
 
 // Chooses a random incoming direction based on a uniform probability distribution
-void Material::LambertRandDir(vec3 normal, vec3 &direction, float &probability) {
+void Material::LambertSampleDir(vec3 normal, vec3 &direction, vec3 &probability) {
     float PI = glm::pi<float>();
     
     // Generate two random floats in range (0,1)
@@ -219,10 +197,53 @@ void Material::LambertRandDir(vec3 normal, vec3 &direction, float &probability) 
     vec3 xaxis = glm::normalize( glm::cross( yaxis, normal ) );
     
     direction = glm::normalize( glm::mat3( xaxis, yaxis, normal ) * randVec );
-    probability = 1/( 2*PI );
+    probability = vec3( 1/( 2*PI ) );
     
 }
 
+void Material::SmithSampleDir(vec3 normal, vec3 incoming, vec3 &direction, vec3 &probability) {
+    float inf = std::numeric_limits<float>::infinity();
+        
+    float height = InvCumulativeDist(0.9f);
+    
+    vec3 energy = vec3(1.0f);
+    vec3 dir = -incoming;
+    vec3 weight;
+    int r = 0;
+    
+    float theta;
+    float ax = roughness;
+    float ay = roughness;
+    vec3 microNormal;
+    
+//    vec3 sum = vec3(0.0f);
+    
+    while (true) {
+        
+        
+        height = SampleHeight(dir, height);
+
+        if (height == inf) {
+            break;
+        }
+        
+        
+        microNormal = SampleNorm(-dir, ax, ay);
+        SamplePhase(microNormal, -dir, dir, weight);
+        energy = energy * weight;
+        
+        
+        
+        // Direction points opposite incoming, but Phase expects incoming
+        
+//        sum += energy * Phase(-direction, outgoing) * SmithG(outgoing, height);
+        
+        r++;
+    }
+    
+    direction = direction;
+    probability = energy;
+}
 
 // Calculate Distribution of Normals
 float Material::Distribution(vec3 half_angle) {
@@ -265,6 +286,8 @@ float Material::GGXD(vec3 half_angle) {
 
 
 
+
+
 // Simulate random walk
 vec3 Material::Smith(vec3 incoming, vec3 outgoing) {
     float inf = std::numeric_limits<float>::infinity();
@@ -277,8 +300,8 @@ vec3 Material::Smith(vec3 incoming, vec3 outgoing) {
     int r = 0;
     
     float theta;
-    float ax = 1;
-    float ay = 1;
+    float ax = roughness;
+    float ay = roughness;
     vec3 microNormal;
     
     vec3 sum = vec3(0.0f);
@@ -288,18 +311,14 @@ vec3 Material::Smith(vec3 incoming, vec3 outgoing) {
         
         height = SampleHeight(direction, height);
 
-        
-        
         if (height == inf) {
             break;
         }
         
-//        theta = vec2angle(normal, direction);
         
         microNormal = SampleNorm(-direction, ax, ay);
         SamplePhase(microNormal, -direction, direction, weight);
         energy = energy * weight;
-        
         
         
         // Direction points opposite incoming, but Phase expects incoming
@@ -309,9 +328,8 @@ vec3 Material::Smith(vec3 incoming, vec3 outgoing) {
         r++;
     }
     
-//    std::cout << sum[2] << " ";
-    
-    return sum;
+    // Divide by cosine of outgoing direction
+    return sum / outgoing[2];
 }
 
 void Material::SamplePhase(vec3 microNormal, vec3 incoming, vec3& outgoing, vec3& weight) {
@@ -362,6 +380,8 @@ vec3 Material::Phase(vec3 incoming, vec3 outgoing) {
     if (material == "conductor") {
 
         return reflectComp;
+    } else if (material == "dielectric") {
+        
     }
     
     return vec3(0.0f);
@@ -575,64 +595,36 @@ void Material::SampleGGX(float theta_i, float& slope_x, float& slope_y) {
 
 // Implementation modeled on Giles 2012
 float Material::erfinv(float x) {
-    float w, p;
-    w = - logf((1.0f-x)*(1.0f+x));
-    if ( w < 5.000000f ) {
-    w = w - 2.500000f;
-    p = 2.81022636e-08f;
-    p = 3.43273939e-07f + p*w;
-    p = -3.5233877e-06f + p*w;
-    p = -4.39150654e-06f + p*w;
-    p = 0.00021858087f + p*w;
-    p = -0.00125372503f + p*w;
-    p = -0.00417768164f + p*w;
-    p = 0.246640727f + p*w;
-    p = 1.50140941f + p*w;
+    float w;
+    float p;
+
+    w = -logf((1-x)*(1+x));
+
+    if (w < 5) {
+        w = w - 2.5;
+        p = 2.81022636e-08f;
+        p = 3.43273939e-07f + p*w;
+        p = -3.5233877e-06f + p*w;
+        p = -4.39150654e-06f + p*w;
+        p = 0.00021858087f + p*w;
+        p = -0.00125372503f + p*w;
+        p = -0.00417768164f + p*w;
+        p = 0.246640727f + p*w;
+        p = 1.50140941f + p*w;
+    } else {
+        w = glm::sqrt(w) - 3;
+        p = -0.000200214257f;
+        p = 0.000100950558f + p*w;
+        p = 0.00134934322f + p*w;
+        p = -0.00367342844f + p*w;
+        p = 0.00573950773f + p*w;
+        p = -0.0076224613f + p*w;
+        p = 0.00943887047f + p*w;
+        p = 1.00167406f + p*w;
+        p = 2.83297682f + p*w;
     }
-    else {
-    w = sqrtf(w) - 3.000000f;
-    p = -0.000200214257f;
-    p = 0.000100950558f + p*w;
-    p = 0.00134934322f + p*w;
-    p = -0.00367342844f + p*w;
-    p = 0.00573950773f + p*w;
-    p = -0.0076224613f + p*w;
-    p = 0.00943887047f + p*w;
-    p = 1.00167406f + p*w;
-    p = 2.83297682f + p*w;
-    }
+
     return p*x;
-    
-//    float w;
-//    float p;
-//
-//    w = -logf((1-x)*(1+x));
-//
-//    if (w < 5) {
-//        w = w - 2.5;
-//        p = 2.81022636e-08f;
-//        p = 3.43273939e-07f + p*w;
-//        p = -3.5233877e-06f + p*w;
-//        p = -4.39150654e-06f + p*w;
-//        p = 0.00021858087f + p*w;
-//        p = -0.00125372503f + p*w;
-//        p = -0.00417768164f + p*w;
-//        p = 0.246640727f + p*w;
-//        p = 1.50140941f + p*w;
-//    } else {
-//        w = glm::sqrt(w) - 3;
-//        p = -0.000200214257f;
-//        p = 0.000100950558f + p*w;
-//        p = 0.00134934322f + p*w;
-//        p = -0.00367342844f + p*w;
-//        p = 0.00573950773f + p*w;
-//        p = -0.0076224613f + p*w;
-//        p = 0.00943887047f + p*w;
-//        p = 1.00167406f + p*w;
-//        p = 2.83297682f + p*w;
-//    }
-//
-//    return p*x;
 }
 
 float Material::vec2angle(vec3 normal, vec3 w) {
