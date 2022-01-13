@@ -7,10 +7,15 @@
 The "layout.txt" file can be edited to contain scene information. For instance:
 
 // mat   method   dist    type    emissive   rough  diffuseColor      fresnel
+
 material smith beckmann conductor vec3(0,0,0) 0.4 vec3(0.0,0.9,0.0) vec3(0.9,0.0,0.9)
+
 material lambert beckmann beckmann vec3(200,200,200), 0.0, vec3(0,0,0), vec3(0.0,0,0)
+
 sphere vec3(3,0,3) 3 mat0
+
 light vec3(-8,0,0) 3 mat1
+
 camera vec3(0,5,0) vec3(0,-1,0) 1
 
 The first argument of each line determines the type of object to add, while successive arguments specify the parameters of that object. The "material" object requires many parameters.
